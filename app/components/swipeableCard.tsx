@@ -6,8 +6,8 @@ export type SwipeDirection = "left" | "right";
 
 interface SwipeableCardProps {
     children: (triggerSwipe: (direction: SwipeDirection) => void) => ReactNode;
-    onSwipeRight: () => void; // present
-    onSwipeLeft: () => void; // absent
+    onSwipeRight: () => void; // absent
+    onSwipeLeft: () => void; // present
     threshold?: number;
 }
 
@@ -93,16 +93,16 @@ export default function SwipeableCard({
             onPointerCancel={endDrag}
         >
             <div
-                className="pointer-events-none absolute left-8 top-8 z-10 rounded-lg border-2 border-emerald-500 px-3 py-1 text-sm font-extrabold tracking-wider text-emerald-500"
+                className="pointer-events-none absolute left-8 top-8 z-10 rounded-lg border-2 border-destructive px-3 py-1 text-sm font-extrabold tracking-wider text-destructive"
                 style={{ opacity: dragDx > 0 ? stampOpacity : 0, transform: "rotate(-8deg)" }}
             >
-                PRESENT
+                ABSENT
             </div>
             <div
-                className="pointer-events-none absolute right-8 top-8 z-10 rounded-lg border-2 border-destructive px-3 py-1 text-sm font-extrabold tracking-wider text-destructive"
+                className="pointer-events-none absolute right-8 top-8 z-10 rounded-lg border-2 border-emerald-500 px-3 py-1 text-sm font-extrabold tracking-wider text-emerald-500"
                 style={{ opacity: dragDx < 0 ? stampOpacity : 0, transform: "rotate(8deg)" }}
             >
-                ABSENT
+                PRESENT
             </div>
 
             {children(triggerSwipe)}

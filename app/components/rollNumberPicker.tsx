@@ -18,6 +18,15 @@ interface RollNumberPickerProps {
 
 const ITEM_W = 56; // px
 
+// Colors the number, the dot, and the shading behind each item according to
+// that student's attendance status — so scanning the strip alone tells you
+// who's marked and how, not just the currently-active one.
+const STATUS_COLORS: Record<AttendanceStatus, { text: string; dot: string; bg: string }> = {
+    present: { text: "text-emerald-600", dot: "bg-emerald-500", bg: "bg-emerald-500/15" },
+    absent: { text: "text-destructive", dot: "bg-destructive", bg: "bg-destructive/15" },
+    unmarked: { text: "text-muted-foreground", dot: "bg-border", bg: "bg-muted" },
+};
+
 // A transform-driven carousel instead of native scroll + scroll-snap +
 // scrollIntoView. The active item's position is derived purely from
 // `activeIndex` (idx * ITEM_W), so it is *always* exactly centered — no
@@ -66,7 +75,7 @@ export default function RollNumberPicker({ students, activeIndex, onSelect }: Ro
 
     return (
         <div className="relative h-20 touch-pan-y select-none overflow-hidden">
-            <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-muted" />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-primary/50" />
 
             <div
                 className="absolute left-1/2 top-1/2 flex items-center"
@@ -86,6 +95,7 @@ export default function RollNumberPicker({ students, activeIndex, onSelect }: Ro
                     const norm = Math.min(distance / 2.5, 1);
                     const scale = 1.15 - norm * 0.45;
                     const opacity = 1 - norm * 0.75;
+                    const colors = STATUS_COLORS[s.status];
 
                     return (
                         <button
@@ -102,18 +112,10 @@ export default function RollNumberPicker({ students, activeIndex, onSelect }: Ro
                                 transform: `scale(${scale.toFixed(3)})`,
                                 opacity: opacity.toFixed(2),
                             }}
-                            className={`flex h-16 shrink-0 origin-center flex-col items-center justify-center gap-1.5 transition-transform ${idx === activeIndex ? "text-primary" : "text-muted-foreground"
-                                }`}
+                            className={`flex h-16 shrink-0 origin-center flex-col items-center justify-center gap-1.5 rounded-2xl transition-transform ${colors.bg}`}
                         >
-                            <span className="text-lg font-semibold tabular-nums">{s.rollNumber}</span>
-                            <span
-                                className={`h-1.5 w-1.5 rounded-full ${s.status === "present"
-                                    ? "bg-emerald-500"
-                                    : s.status === "absent"
-                                        ? "bg-destructive"
-                                        : "bg-border"
-                                    }`}
-                            />
+                            <span className={`text-lg font-semibold tabular-nums ${colors.text}`}>{s.rollNumber}</span>
+                            <span className={`h-1.5 w-1.5 rounded-full ${colors.dot}`} />
                         </button>
                     );
                 })}

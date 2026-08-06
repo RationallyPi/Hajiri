@@ -120,7 +120,7 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
 
     if (loading) {
         return (
-            <main className="flex min-h-screen flex-col bg-background">
+            <main className="flex h-screen flex-col overflow-hidden bg-background">
                 <Navbar title={title} date={dateLabel} onFinish={handleFinish} backHref={backHref} />
                 <p className="flex flex-1 items-center justify-center text-muted-foreground">Loading…</p>
             </main>
@@ -129,7 +129,7 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
 
     if (!active) {
         return (
-            <main className="flex min-h-screen flex-col bg-background">
+            <main className="flex h-screen flex-col overflow-hidden bg-background">
                 <Navbar title={title} date={dateLabel} onFinish={handleFinish} backHref={backHref} />
                 <p className="flex flex-1 items-center justify-center text-muted-foreground">
                     No students in this course.
@@ -139,10 +139,10 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
     }
 
     return (
-        <main className="flex min-h-screen flex-col bg-background">
+        <main className="flex h-screen flex-col overflow-hidden bg-background">
             <Navbar title={title} date={dateLabel} onFinish={handleFinish} backHref={backHref} />
 
-            <div className="px-4 pt-4">
+            <div className="shrink-0 px-4 pt-4">
                 <RollNumberPicker
                     students={roster.map((r) => ({ rollNumber: r.student.rollNumber, status: r.status }))}
                     activeIndex={activeIndex}
@@ -150,16 +150,16 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
                 />
             </div>
 
-            <div className="flex flex-1 p-4">
-                <SwipeableCard onSwipeRight={() => mark("present")} onSwipeLeft={() => mark("absent")}>
+            <div className="flex min-h-0 flex-1 p-4">
+                <SwipeableCard onSwipeRight={() => mark("absent")} onSwipeLeft={() => mark("present")}>
                     {(triggerSwipe) => (
                         <StudentCard
                             name={active.student.name}
                             rollNumber={active.student.rollNumber}
                             photo={photoUrls[active.student.studentID] ?? "/student-placeholder.png"}
                             attendancePercentage={active.attendancePercentage ?? 0}
-                            onMarkPresent={() => triggerSwipe("right")}
-                            onMarkAbsent={() => triggerSwipe("left")}
+                            onMarkPresent={() => triggerSwipe("left")}
+                            onMarkAbsent={() => triggerSwipe("right")}
                         />
                     )}
                 </SwipeableCard>

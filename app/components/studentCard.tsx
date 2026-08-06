@@ -36,36 +36,39 @@ export default function StudentCard({
 
     return (
         <div className="flex h-full w-full p-4">
-            <div className="flex h-full w-full flex-col rounded-3xl border border-border bg-card px-8 pb-6 pt-8 shadow-lg">
-                {/* Photo */}
-                <div className="flex justify-center">
-                    <img
-                        src={photo}
-                        alt={name}
-                        className="aspect-square w-4/5 max-w-xs rounded-2xl border border-border object-cover shadow-md"
-                    />
-                </div>
-
-                {/* Attendance Percentage */}
-                <div className="mt-8 flex justify-center">
+            {/* h-full + overflow-hidden pin the card to exactly the space the parent
+                gives it — nothing inside (long names included) can push it taller,
+                so there's never a reason to scroll. */}
+            <div className="flex h-full w-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card px-8 pb-6 pt-6 shadow-lg">
+                {/* Attendance Percentage — small, above the photo */}
+                <div className="flex shrink-0 justify-center">
                     <span
-                        className={`rounded-full px-5 py-2 text-lg font-semibold ${isLowAttendance
-                                ? "bg-destructive/15 text-destructive"
-                                : "bg-primary/15 text-primary"
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${isLowAttendance
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-primary/15 text-primary"
                             }`}
                     >
                         Attendance: {attendancePercentage.toFixed(0)}%
                     </span>
                 </div>
 
-                {/* Student Details */}
-                <div className="mt-8 flex flex-col items-center">
-                    <h2 className="text-center text-4xl font-bold text-card-foreground">{name}</h2>
+                {/* Photo — takes whatever space is left; object-cover crops instead
+                    of forcing the card to grow to the image's natural size. */}
+                <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-2xl border border-border shadow-md">
+                    <img src={photo} alt={name} className="h-full w-full object-cover" />
+                </div>
 
-                    <p className="mt-3 text-xl text-muted-foreground">Roll No. {rollNumber}</p>
+                {/* Student Details — fixed height; the name truncates instead of
+                    wrapping, so it can never expand the card. */}
+                <div className="mt-4 flex shrink-0 flex-col items-center">
+                    <h2 className="w-full truncate text-center text-2xl font-bold text-card-foreground" title={name}>
+                        {name}
+                    </h2>
 
-                    {/* Present / Absent buttons — 20px below roll number, kept well apart to avoid mis-clicks */}
-                    <div className="mt-5 flex w-full items-center justify-between gap-10">
+                    <p className="mt-1 text-base text-muted-foreground">Roll No. {rollNumber}</p>
+
+                    {/* Present / Absent buttons, kept well apart to avoid mis-clicks */}
+                    <div className="mt-4 flex w-full items-center justify-between gap-10">
                         <button
                             type="button"
                             onClick={handleAbsent}
