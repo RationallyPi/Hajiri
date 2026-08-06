@@ -39,17 +39,12 @@ export default function StudentCard({
             {/* h-full + overflow-hidden pin the card to exactly the space the parent
                 gives it — nothing inside (long names included) can push it taller,
                 so there's never a reason to scroll. */}
-            <div className="flex h-full w-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card px-8 pb-6 pt-6 shadow-lg">
-                {/* Attendance Percentage — small, above the photo */}
+            <div className="flex h-full w-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card px-8 pb-6 pt-6 shadow-xl shadow-black/10 ring-1 ring-black/5">
+                {/* Name — small, above the photo */}
                 <div className="flex shrink-0 justify-center">
-                    <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${isLowAttendance
-                            ? "bg-destructive/15 text-destructive"
-                            : "bg-primary/15 text-primary"
-                            }`}
-                    >
-                        Attendance: {attendancePercentage.toFixed(0)}%
-                    </span>
+                    <h2 className="max-w-full truncate text-center text-lg font-semibold text-card-foreground" title={name}>
+                        {name}
+                    </h2>
                 </div>
 
                 {/* Photo — takes whatever space is left; object-cover crops instead
@@ -58,14 +53,16 @@ export default function StudentCard({
                     <img src={photo} alt={name} className="h-full w-full object-cover" />
                 </div>
 
-                {/* Student Details — fixed height; the name truncates instead of
-                    wrapping, so it can never expand the card. */}
+                {/* Attendance / roll details — fixed height; below the photo now. */}
                 <div className="mt-4 flex shrink-0 flex-col items-center">
-                    <h2 className="w-full truncate text-center text-2xl font-bold text-card-foreground" title={name}>
-                        {name}
-                    </h2>
-
-                    <p className="mt-1 text-base text-muted-foreground">Roll No. {rollNumber}</p>
+                    <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${isLowAttendance
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-primary/15 text-primary"
+                            }`}
+                    >
+                        Attendance: {attendancePercentage.toFixed(0)}%
+                    </span>
 
                     {/* Present / Absent buttons, kept well apart to avoid mis-clicks */}
                     <div className="mt-4 flex w-full items-center justify-between gap-10">
