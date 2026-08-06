@@ -2,8 +2,10 @@
 
 import { useRef, useState, type PointerEvent, type ReactNode } from "react";
 
+export type SwipeDirection = "left" | "right";
+
 interface SwipeableCardProps {
-    children: ReactNode;
+    children: (triggerSwipe: (direction: SwipeDirection) => void) => ReactNode;
     onSwipeRight: () => void; // present
     onSwipeLeft: () => void; // absent
     threshold?: number;
@@ -58,6 +60,25 @@ export default function SwipeableCard({
     const rotation = Math.max(-10, Math.min(10, dragDx / 12));
     const stampOpacity = Math.min(Math.abs(dragDx) / 100, 1);
 
+    // Same fly-off animation the drag-release path uses, callable directly —
+    // this is what lets a button tap look identical to a real swipe.
+    const triggerSwipe = (direction: SwipeDirection) => {
+        if (dragState.current.dragging) return;
+        if (direction === "right") {
+            setDragDx(600);
+            setTimeout(() => {
+                setDragDx(0);
+                onSwipeRight();
+            }, 160);
+        } else {
+            setDragDx(-600);
+            setTimeout(() => {
+                setDragDx(0);
+                onSwipeLeft();
+            }, 160);
+        }
+    };
+
     return (
         <div
             className="relative h-full w-full touch-pan-y select-none"
@@ -84,7 +105,7 @@ export default function SwipeableCard({
                 ABSENT
             </div>
 
-            {children}
+            {children(triggerSwipe)}
         </div>
     );
 }
