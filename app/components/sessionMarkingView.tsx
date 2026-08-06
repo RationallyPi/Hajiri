@@ -40,6 +40,7 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
     const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
     const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [showUnmarkedModal, setShowUnmarkedModal] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -94,6 +95,7 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
     }, [roster.map((r) => r.student.studentID).join(",")]);
 
     const active = roster[activeIndex];
+    const unmarkedEntries = roster.filter((r) => r.status === "unmarked");
 
     const mark = async (status: AttendanceStatus) => {
         if (!active || status === "unmarked") return;
@@ -107,8 +109,20 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
     };
 
     const handleFinish = async () => {
+        if (unmarkedEntries.length > 0) {
+            setShowUnmarkedModal(true);
+            return;
+        }
         await finishSession(sessionID); // no-op if it's already finished — just re-affirms it
         router.push(`/summary/${sessionID}`);
+    };
+
+    // Jumps straight to the first unmarked student and dismisses the modal —
+    // lets the teacher act on the warning instead of just reading it.
+    const goToFirstUnmarked = () => {
+        const idx = roster.findIndex((r) => r.status === "unmarked");
+        if (idx !== -1) setActiveIndex(idx);
+        setShowUnmarkedModal(false);
     };
 
     const title = department?.name ?? "Session";
@@ -164,6 +178,53 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
                     )}
                 </SwipeableCard>
             </div>
+
+            {showUnmarkedModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                    onClick={() => setShowUnmarkedModal(false)}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-semibold text-card-foreground">
+                            {unmarkedEntries.length} student{unmarkedEntries.length === 1 ? "" : "s"} not marked yet
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Mark everyone present or absent before finishing this session.
+                        </p>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            {unmarkedEntries.map((entry) => (
+                                <span
+                                    key={entry.student.studentID}
+                                    className="rounded-full bg-muted px-3 py-1 text-sm font-medium tabular-nums text-muted-foreground"
+                                >
+                                    Roll {entry.student.rollNumber}
+                                </span>
+                            ))}
+                        </div>
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowUnmarkedModal(false)}
+                                className="flex-1 rounded-xl border border-border bg-card py-2.5 text-sm font-semibold text-card-foreground"
+                            >
+                                Close
+                            </button>
+                            <button
+                                type="button"
+                                onClick={goToFirstUnmarked}
+                                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
+                            >
+                                Go to first
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

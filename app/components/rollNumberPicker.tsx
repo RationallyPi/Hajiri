@@ -21,10 +21,10 @@ const ITEM_W = 56; // px
 // Colors the number, the dot, and the shading behind each item according to
 // that student's attendance status — so scanning the strip alone tells you
 // who's marked and how, not just the currently-active one.
-const STATUS_COLORS: Record<AttendanceStatus, { text: string; dot: string; bg: string }> = {
-    present: { text: "text-emerald-600", dot: "bg-emerald-500", bg: "bg-emerald-500/15" },
-    absent: { text: "text-destructive", dot: "bg-destructive", bg: "bg-destructive/15" },
-    unmarked: { text: "text-muted-foreground", dot: "bg-border", bg: "bg-muted" },
+const STATUS_COLORS: Record<AttendanceStatus, { text: string; dot: string; bg: string; border: string }> = {
+    present: { text: "text-emerald-600", dot: "bg-emerald-500", bg: "bg-emerald-500/15", border: "border-emerald-500/15" },
+    absent: { text: "text-destructive", dot: "bg-destructive", bg: "bg-destructive/15", border: "border-destructive/15" },
+    unmarked: { text: "text-muted-foreground", dot: "bg-border", bg: "bg-muted", border: "border-muted" },
 };
 
 // A transform-driven carousel instead of native scroll + scroll-snap +
@@ -75,8 +75,6 @@ export default function RollNumberPicker({ students, activeIndex, onSelect }: Ro
 
     return (
         <div className="relative h-20 touch-pan-y select-none overflow-hidden">
-            <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-primary/50" />
-
             <div
                 className="absolute left-1/2 top-1/2 flex items-center"
                 style={{
@@ -93,9 +91,13 @@ export default function RollNumberPicker({ students, activeIndex, onSelect }: Ro
                     // Pure function of props — always correct, no DOM measurement involved.
                     const distance = Math.abs(idx - activeIndex);
                     const norm = Math.min(distance / 2.5, 1);
-                    const scale = 1.15 - norm * 0.45;
+                    // Active item stays at its natural size; neighbors shrink and
+                    // ease downward as distance grows, reading as "pushed back".
+                    const scale = 1.15 - norm * 0.75;
                     const opacity = 1 - norm * 0.75;
+                    const pushBack = norm * 8; // px, vertical recede
                     const colors = STATUS_COLORS[s.status];
+                    const isActive = idx === activeIndex;
 
                     return (
                         <button
@@ -109,10 +111,11 @@ export default function RollNumberPicker({ students, activeIndex, onSelect }: Ro
                             style={{
                                 flexBasis: ITEM_W,
                                 width: ITEM_W,
-                                transform: `scale(${scale.toFixed(3)})`,
+                                transform: `translateY(${pushBack.toFixed(2)}px) scale(${scale.toFixed(3)})`,
                                 opacity: opacity.toFixed(2),
                             }}
-                            className={`flex h-16 shrink-0 origin-center flex-col items-center justify-center gap-1.5 rounded-2xl transition-transform ${colors.bg}`}
+                            className={`flex h-16 shrink-0 origin-center flex-col items-center justify-center gap-1.5 rounded-2xl border-2 transition-transform ${colors.bg
+                                } ${isActive ? "border-primary" : colors.border}`}
                         >
                             <span className={`text-lg font-semibold tabular-nums ${colors.text}`}>{s.rollNumber}</span>
                             <span className={`h-1.5 w-1.5 rounded-full ${colors.dot}`} />
