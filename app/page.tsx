@@ -50,8 +50,8 @@ export default function Home() {
             {!loading && departments.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 No courses yet —{" "}
-                <Link href="/settings" className="underline">
-                  add one in Settings
+                <Link href="/courses" className="underline">
+                  add one
                 </Link>
                 .
               </p>
@@ -86,6 +86,31 @@ export default function Home() {
                 </button>
               </Link>
             ))}
+
+            <Link href="/courses">
+              <button
+                className="
+                  w-full
+                  rounded-lg
+                  border
+                  border-dashed
+                  border-border
+                  px-6
+                  py-4
+                  text-center
+                  text-sm
+                  font-semibold
+                  text-muted-foreground
+                  transition-all
+                  duration-200
+                  hover:bg-accent
+                  hover:text-accent-foreground
+                  active:scale-[0.98]
+                "
+              >
+                + Add Courses
+              </button>
+            </Link>
           </div>
         </div>
       </main>

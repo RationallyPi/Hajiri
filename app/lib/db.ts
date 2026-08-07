@@ -42,6 +42,11 @@ export interface Profile {
     profileID: number;
     professorName: string;
     photo: Blob | null;
+    email: string; // used as the recipient for "email me the export" — blank means that option stays disabled
+    institution: string; // e.g. "Institute of Forestry"
+    department: string; // the professor's own department/faculty — distinct from the per-course `Department` entity above
+    resendApiKey: string; // pasted in via Settings > Email — lets "Email CSV" work without a server .env file
+    resendFromEmail: string; // optional sender override, e.g. "Hajiri <you@yourdomain.com>"; blank = use the server default
 }
 
 // Derived UI-facing status — not stored directly. "unmarked" means no Attendance row exists yet.
@@ -130,6 +135,50 @@ class AttendanceDB extends Dexie {
             attendance: "[sessionID+studentID], sessionID, studentID",
             profile: "profileID",
         });
+
+        // Adds email/institution/department to the profile row (email is what
+        // the "Email CSV" export button sends to). None of these are indexed,
+        // so the store definition is unchanged — only the existing profile
+        // row needs the new fields backfilled so they're never `undefined`.
+        this.version(6)
+            .stores({
+                departments: "++departmentID, name",
+                students: "++studentID, departmentID, &[departmentID+rollNumber]",
+                sessions: "++sessionID, departmentID, date",
+                attendance: "[sessionID+studentID], sessionID, studentID",
+                profile: "profileID",
+            })
+            .upgrade((tx) =>
+                tx
+                    .table("profile")
+                    .toCollection()
+                    .modify((p) => {
+                        p.email = p.email ?? "";
+                        p.institution = p.institution ?? "";
+                        p.department = p.department ?? "";
+                    }),
+            );
+
+        // Adds resendApiKey/resendFromEmail so the Resend key can be pasted
+        // in from Settings > Email instead of requiring a server .env file.
+        // Same pattern as v6 — unindexed fields, just backfilled.
+        this.version(7)
+            .stores({
+                departments: "++departmentID, name",
+                students: "++studentID, departmentID, &[departmentID+rollNumber]",
+                sessions: "++sessionID, departmentID, date",
+                attendance: "[sessionID+studentID], sessionID, studentID",
+                profile: "profileID",
+            })
+            .upgrade((tx) =>
+                tx
+                    .table("profile")
+                    .toCollection()
+                    .modify((p) => {
+                        p.resendApiKey = p.resendApiKey ?? "";
+                        p.resendFromEmail = p.resendFromEmail ?? "";
+                    }),
+            );
     }
 }
 

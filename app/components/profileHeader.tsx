@@ -57,6 +57,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [editing, setEditing] = useState(false);
     const [nameDraft, setNameDraft] = useState("");
+    const [emailDraft, setEmailDraft] = useState("");
+    const [institutionDraft, setInstitutionDraft] = useState("");
+    const [departmentDraft, setDepartmentDraft] = useState("");
     const [photoDraft, setPhotoDraft] = useState<Blob | null>(null);
     const [photoDraftUrl, setPhotoDraftUrl] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -90,6 +93,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
     const openEditor = () => {
         setNameDraft(profile?.professorName ?? "");
+        setEmailDraft(profile?.email ?? "");
+        setInstitutionDraft(profile?.institution ?? "");
+        setDepartmentDraft(profile?.department ?? "");
         setPhotoDraft(null);
         setEditing(true);
     };
@@ -104,6 +110,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         try {
             await updateProfile({
                 professorName: nameDraft.trim(),
+                email: emailDraft.trim(),
+                institution: institutionDraft.trim(),
+                department: departmentDraft.trim(),
                 ...(photoDraft ? { photo: photoDraft } : {}),
             });
             await refresh();
@@ -161,6 +170,40 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                                 value={nameDraft}
                                 onChange={(e) => setNameDraft(e.target.value)}
                                 placeholder="Professor's name"
+                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                            />
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">Email</label>
+                            <input
+                                type="email"
+                                value={emailDraft}
+                                onChange={(e) => setEmailDraft(e.target.value)}
+                                placeholder="you@example.com"
+                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Used for the &quot;Email CSV&quot; option when exporting attendance.
+                            </p>
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">Institution</label>
+                            <input
+                                value={institutionDraft}
+                                onChange={(e) => setInstitutionDraft(e.target.value)}
+                                placeholder="e.g. Institute of Forestry"
+                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                            />
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-1">
+                            <label className="text-xs text-muted-foreground">Department</label>
+                            <input
+                                value={departmentDraft}
+                                onChange={(e) => setDepartmentDraft(e.target.value)}
+                                placeholder="e.g. Forest Science"
                                 className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
                             />
                         </div>

@@ -5,7 +5,16 @@ import type { Attendance, AttendanceStatus, Department, Profile, Session, Studen
 
 const PROFILE_ID = 1; // singleton row
 
-const emptyProfile = (): Profile => ({ profileID: PROFILE_ID, professorName: "", photo: null });
+const emptyProfile = (): Profile => ({
+    profileID: PROFILE_ID,
+    professorName: "",
+    photo: null,
+    email: "",
+    institution: "",
+    department: "",
+    resendApiKey: "",
+    resendFromEmail: "",
+});
 
 // Always resolves to a row — creates a blank default on first call so the
 // Home screen never has to special-case "no profile yet".
@@ -17,7 +26,14 @@ export const getProfile = async (): Promise<Profile> => {
     return fresh;
 };
 
-export const updateProfile = (changes: Partial<Pick<Profile, "professorName" | "photo">>) =>
+export const updateProfile = (
+    changes: Partial<
+        Pick<
+            Profile,
+            "professorName" | "photo" | "email" | "institution" | "department" | "resendApiKey" | "resendFromEmail"
+        >
+    >,
+) =>
     db.transaction("rw", db.profile, async () => {
         const current = (await db.profile.get(PROFILE_ID)) ?? emptyProfile();
         await db.profile.put({ ...current, ...changes });
