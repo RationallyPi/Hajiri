@@ -1,5 +1,27 @@
 import { db } from "./db";
-import type { Attendance, AttendanceStatus, Department, Session, Student } from "./db";
+import type { Attendance, AttendanceStatus, Department, Profile, Session, Student } from "./db";
+
+/* --------------------------------- Profile --------------------------------- */
+
+const PROFILE_ID = 1; // singleton row
+
+const emptyProfile = (): Profile => ({ profileID: PROFILE_ID, professorName: "", photo: null });
+
+// Always resolves to a row — creates a blank default on first call so the
+// Home screen never has to special-case "no profile yet".
+export const getProfile = async (): Promise<Profile> => {
+    const existing = await db.profile.get(PROFILE_ID);
+    if (existing) return existing;
+    const fresh = emptyProfile();
+    await db.profile.put(fresh);
+    return fresh;
+};
+
+export const updateProfile = (changes: Partial<Pick<Profile, "professorName" | "photo">>) =>
+    db.transaction("rw", db.profile, async () => {
+        const current = (await db.profile.get(PROFILE_ID)) ?? emptyProfile();
+        await db.profile.put({ ...current, ...changes });
+    });
 
 /* ------------------------------ Departments ------------------------------ */
 

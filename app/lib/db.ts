@@ -32,6 +32,18 @@ export interface Attendance {
     status: boolean; // true = present, false = absent. No row = unmarked.
 }
 
+// Singleton settings row — always stored/read at profileID = 1. Holds the
+// professor's display info shown on the Home screen (photo + name above the
+// "Hajiri" app title). A profile row always exists once the DB has been
+// touched — getProfile() in queries.ts creates a blank default on first read
+// so callers never have to null-check "no profile yet" separately from
+// "no name set yet".
+export interface Profile {
+    profileID: number;
+    professorName: string;
+    photo: Blob | null;
+}
+
 // Derived UI-facing status — not stored directly. "unmarked" means no Attendance row exists yet.
 export type AttendanceStatus = "unmarked" | "present" | "absent";
 
@@ -40,6 +52,7 @@ class AttendanceDB extends Dexie {
     students!: Table<Student, number>;
     sessions!: Table<Session, number>;
     attendance!: Table<Attendance, [number, number]>;
+    profile!: Table<Profile, number>;
 
     constructor() {
         super("attendanceDB");
@@ -105,6 +118,17 @@ class AttendanceDB extends Dexie {
             students: "++studentID, departmentID, &[departmentID+rollNumber]",
             sessions: "++sessionID, departmentID, date",
             attendance: "[sessionID+studentID], sessionID, studentID",
+        });
+
+        // New `profile` store for the professor's Home-screen display info
+        // (photo + name). Singleton — one row, keyed by profileID (always 1).
+        // Existing stores are unchanged, so no upgrade/backfill is needed here.
+        this.version(5).stores({
+            departments: "++departmentID, name",
+            students: "++studentID, departmentID, &[departmentID+rollNumber]",
+            sessions: "++sessionID, departmentID, date",
+            attendance: "[sessionID+studentID], sessionID, studentID",
+            profile: "profileID",
         });
     }
 }
