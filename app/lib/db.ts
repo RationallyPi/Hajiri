@@ -4,10 +4,10 @@ export interface Department {
     departmentID: number;
     name: string; // Subject
     courseCode: string; // e.g. "CSC 205"
-    level: string; // Year/Semester, e.g. "3/2"
+    year: string; // e.g. "3"
+    semester: string; // e.g. "2"
     group: string; // Group / Section name
     academicYear: string; // e.g. "2082/083"
-    teacherName: string;
 }
 
 export interface Student {
@@ -34,10 +34,12 @@ export interface Attendance {
 
 // Singleton settings row — always stored/read at profileID = 1. Holds the
 // professor's display info shown on the Home screen (photo + name above the
-// "Hajiri" app title). A profile row always exists once the DB has been
-// touched — getProfile() in queries.ts creates a blank default on first read
-// so callers never have to null-check "no profile yet" separately from
-// "no name set yet".
+// "Hajiri" app title), and is the single source of truth for the teacher's
+// name shown on attendance reports (courses no longer carry their own
+// teacher name — see Department above). A profile row always exists once the
+// DB has been touched — getProfile() in queries.ts creates a blank default
+// on first read so callers never have to null-check "no profile yet"
+// separately from "no name set yet".
 export interface Profile {
     profileID: number;
     professorName: string;
@@ -177,6 +179,34 @@ class AttendanceDB extends Dexie {
                     .modify((p) => {
                         p.resendApiKey = p.resendApiKey ?? "";
                         p.resendFromEmail = p.resendFromEmail ?? "";
+                    }),
+            );
+
+        // Splits the old combined `level` field ("3/2") into separate `year`
+        // and `semester` fields, and drops `teacherName` — the teacher shown
+        // on reports now always comes from the professor's Profile
+        // (Settings/Customize), not from a per-course field, since a course
+        // only ever has one professor using this app and that name shouldn't
+        // have to be re-typed per course. `year`/`semester` aren't indexed,
+        // so only a data migration is needed, no store-definition change.
+        this.version(8)
+            .stores({
+                departments: "++departmentID, name",
+                students: "++studentID, departmentID, &[departmentID+rollNumber]",
+                sessions: "++sessionID, departmentID, date",
+                attendance: "[sessionID+studentID], sessionID, studentID",
+                profile: "profileID",
+            })
+            .upgrade((tx) =>
+                tx
+                    .table("departments")
+                    .toCollection()
+                    .modify((d) => {
+                        const [year, semester] = String(d.level ?? "").split("/");
+                        d.year = (year ?? "").trim();
+                        d.semester = (semester ?? "").trim();
+                        delete d.level;
+                        delete d.teacherName;
                     }),
             );
     }

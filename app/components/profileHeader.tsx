@@ -172,6 +172,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                                 placeholder="Professor's name"
                                 className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
                             />
+                            <p className="text-xs text-muted-foreground">
+                                Shown as the teacher on every course&apos;s attendance report — courses no longer
+                                have their own teacher field.
+                            </p>
                         </div>
 
                         <div className="mt-3 flex flex-col gap-1">
@@ -184,7 +188,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                                 className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Used for the &quot;Email CSV&quot; option when exporting attendance.
+                                Used for the &quot;Email Report&quot; option when exporting attendance.
                             </p>
                         </div>
 

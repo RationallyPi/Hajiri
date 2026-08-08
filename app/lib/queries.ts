@@ -49,10 +49,10 @@ export const getDepartment = (departmentID: number): Promise<Department | undefi
 export interface DepartmentInput {
     name: string; // Subject
     courseCode: string; // e.g. "CSC 205"
-    level: string; // Year/Semester, e.g. "3/2"
+    year: string; // e.g. "3"
+    semester: string; // e.g. "2"
     group: string; // Group / Section
     academicYear: string; // e.g. "2082/083"
-    teacherName: string;
 }
 
 export const addDepartment = (input: DepartmentInput): Promise<number> =>
@@ -67,10 +67,12 @@ export const updateDepartment = (departmentID: number, changes: Partial<Departme
 // copied, since this is meant for "same class, new semester" reuse, not for
 // merging history. Photos are copied by reusing the same Blob reference,
 // which is cheap and safe since Blobs are immutable; each new record can
-// later get its own photo without touching the original course's. Level,
-// group, and teacher are passed in separately (not just copied) since a new
-// semester is exactly the case where level is likely to change (e.g. "3/1" ->
-// "3/2") even though the roster doesn't.
+// later get its own photo without touching the original course's. Year,
+// semester, and group are passed in separately (not just copied) since a new
+// semester is exactly the case where these are likely to change (e.g. year
+// "3" semester "1" -> semester "2") even though the roster doesn't. The
+// teacher shown on reports always comes from Profile, so there's nothing
+// teacher-related to copy here.
 export const duplicateDepartment = (sourceDepartmentID: number, input: DepartmentInput): Promise<number> =>
     db.transaction("rw", db.departments, db.students, async () => {
         const newDepartmentID = (await db.departments.add({ ...input } as Department)) as number;
@@ -158,6 +160,9 @@ export const bulkAddStudents = (
         return result;
     });
 
+// Removes a student and every attendance row tied to them. Used both by the
+// per-row delete button and (potentially) any bulk-delete UI — always confirm
+// with the user before calling this, since it's not undoable.
 export const deleteStudent = (studentID: number) =>
     db.transaction("rw", db.students, db.attendance, async () => {
         await db.attendance.where("studentID").equals(studentID).delete();

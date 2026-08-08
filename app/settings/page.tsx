@@ -41,7 +41,7 @@ export default function SettingsPage() {
                 <section>
                     <h2 className="mb-1 text-lg font-semibold text-card-foreground">Email</h2>
                     <p className="mb-3 text-xs text-muted-foreground">
-                        Paste in a Resend API key to enable the &quot;Email CSV&quot; button when exporting
+                        Paste in a Resend API key to enable the &quot;Email Report&quot; button when exporting
                         attendance from{" "}
                         <a href="/courses" className="underline">
                             Manage Courses
@@ -83,9 +83,9 @@ export default function SettingsPage() {
                     <p className="mt-2 text-xs text-muted-foreground">
                         {profile?.resendApiKey
                             ? "A key is saved on this device."
-                            : "No key saved yet — without one, Email CSV falls back to the server's RESEND_API_KEY, if set."}{" "}
+                            : "No key saved yet — without one, Email Report falls back to the server's RESEND_API_KEY, if set."}{" "}
                         The key is stored locally in this browser and only sent to this app's own server when you
-                        press Email CSV, never to any third party besides Resend itself.
+                        press Email Report, never to any third party besides Resend itself.
                     </p>
 
                     {!profile?.email && (

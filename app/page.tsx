@@ -26,7 +26,7 @@ export default function Home() {
             href="/courses"
             className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
           >
-            Edit Courses
+            Manage Courses
           </Link>
         </div>
 

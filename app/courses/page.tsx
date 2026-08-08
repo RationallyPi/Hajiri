@@ -27,18 +27,25 @@ export default function CoursesPage() {
     const [students, setStudents] = useState<Student[]>([]);
     const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
 
+    // The roster table for the selected course starts collapsed — "View
+    // Students" expands it in place, "Hide Students" collapses it again.
+    // Resets to collapsed whenever the selected course changes (see the
+    // departmentID effect below), so switching courses never leaves a
+    // roster expanded that the person didn't ask to see.
+    const [studentsExpanded, setStudentsExpanded] = useState(false);
+
     const emptyDeptForm: DepartmentInput = {
         name: "",
         courseCode: "",
-        level: "",
+        year: "",
+        semester: "",
         group: "",
         academicYear: "",
-        teacherName: "",
     };
     const [newDept, setNewDept] = useState<DepartmentInput>(emptyDeptForm);
     const [addingCourse, setAddingCourse] = useState(false);
 
-    // Edit and Duplicate both reuse the same 4-field panel — `deptFormMode`
+    // Edit and Duplicate both reuse the same field panel — `deptFormMode`
     // says which action Save should perform, `deptForm` holds the field values.
     type DeptFormMode = { type: "edit"; departmentID: number } | { type: "duplicate"; sourceDepartmentID: number };
     const [deptFormMode, setDeptFormMode] = useState<DeptFormMode | null>(null);
@@ -52,9 +59,10 @@ export default function CoursesPage() {
     const [exporting, setExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<"csv" | "tsv" | "xlsx">("csv");
     const [emailingExport, setEmailingExport] = useState(false);
-    // Read-only here — the profile's email/Resend key are edited on the
-    // Settings page; this page just needs them to know whether "Email CSV"
-    // is enabled and what to send it with.
+    // Read-only here — the profile's email/Resend key/teacher name are edited
+    // on the Settings page; this page just needs them to know whether "Email
+    // Report" is enabled, what to send it with, and (via currentLetterhead)
+    // whose name goes on the report as the teacher.
     const [profile, setProfile] = useState<Profile | null>(null);
 
     const refreshDepartments = async (selectID?: number) => {
@@ -76,6 +84,7 @@ export default function CoursesPage() {
 
     useEffect(() => {
         if (departmentID != null) refreshStudents(departmentID);
+        setStudentsExpanded(false);
     }, [departmentID]);
 
     // object URLs for student thumbnails — rebuilt only when the roster actually changes
@@ -97,10 +106,10 @@ export default function CoursesPage() {
             const id = await addDepartment({
                 name,
                 courseCode: newDept.courseCode.trim(),
-                level: newDept.level.trim(),
+                year: newDept.year.trim(),
+                semester: newDept.semester.trim(),
                 group: newDept.group.trim(),
                 academicYear: newDept.academicYear.trim(),
-                teacherName: newDept.teacherName.trim(),
             });
             setNewDept(emptyDeptForm);
             setAddingCourse(false);
@@ -116,10 +125,10 @@ export default function CoursesPage() {
         setDeptForm({
             name: d.name,
             courseCode: d.courseCode,
-            level: d.level,
+            year: d.year,
+            semester: d.semester,
             group: d.group,
             academicYear: d.academicYear,
-            teacherName: d.teacherName,
         });
     };
 
@@ -129,10 +138,10 @@ export default function CoursesPage() {
         setDeptForm({
             name: `${d.name} (copy)`,
             courseCode: d.courseCode,
-            level: d.level,
+            year: d.year,
+            semester: d.semester,
             group: d.group,
             academicYear: d.academicYear,
-            teacherName: d.teacherName,
         });
     };
 
@@ -143,10 +152,10 @@ export default function CoursesPage() {
         const payload: DepartmentInput = {
             name,
             courseCode: deptForm.courseCode.trim(),
-            level: deptForm.level.trim(),
+            year: deptForm.year.trim(),
+            semester: deptForm.semester.trim(),
             group: deptForm.group.trim(),
             academicYear: deptForm.academicYear.trim(),
-            teacherName: deptForm.teacherName.trim(),
         };
 
         try {
@@ -214,10 +223,14 @@ export default function CoursesPage() {
         }
     };
 
-    // "Download" supports CSV/TSV/XLSX (picked via the format dropdown);
-    // "Email CSV" always sends CSV specifically, since that's the safest
-    // attachment format for a mail client to render/preview inline.
+    // "Download Report" supports CSV/TSV/XLSX (picked via the format
+    // dropdown); "Email Report" always sends CSV specifically, since that's
+    // the safest attachment format for a mail client to render/preview
+    // inline.
 
+    // The teacher name on every report always comes from the professor's own
+    // Profile (Settings/Customize) — never from anything stored on the
+    // course itself. Courses don't have a teacher field at all.
     const currentLetterhead = () => ({
         institution: profile?.institution ?? "",
         department: profile?.department ?? "",
@@ -330,6 +343,9 @@ export default function CoursesPage() {
         await refreshStudents(departmentID);
     };
 
+    // Manual per-student removal — wipes the student and their attendance
+    // history (see deleteStudent in queries.ts). Confirmed first since it's
+    // not undoable.
     const handleDeleteStudent = async (studentID: number) => {
         if (!confirm("Remove this student and their attendance history?")) return;
         await deleteStudent(studentID);
@@ -343,11 +359,13 @@ export default function CoursesPage() {
         await refreshStudents(departmentID);
     };
 
+    const yearSemesterLabel = (d: Department) => [d.year, d.semester].filter(Boolean).join("/");
+
     return (
         <main className="flex min-h-screen flex-col bg-background">
             <Navbar title="Manage Courses" />
 
-            <div className="mx-auto flex w-full max-w-4xl flex-col gap-10 p-6">
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 p-4 sm:gap-10 sm:p-6">
                 {/* ---------------- Courses ---------------- */}
                 <section>
                     <h2 className="mb-3 text-lg font-semibold text-card-foreground">Courses</h2>
@@ -356,19 +374,23 @@ export default function CoursesPage() {
                         {departments.map((d) => (
                             <div
                                 key={d.departmentID}
-                                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${departmentID === d.departmentID
+                                className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-sm ${departmentID === d.departmentID
                                     ? "border-primary bg-primary/10 text-primary"
                                     : "border-border bg-card text-muted-foreground"
                                     }`}
                             >
-                                <button type="button" onClick={() => setDepartmentID(d.departmentID)}>
+                                <button
+                                    type="button"
+                                    onClick={() => setDepartmentID(d.departmentID)}
+                                    className="px-1 py-1"
+                                >
                                     {d.name}
-                                    {d.level && <span className="ml-1 opacity-70">({d.level})</span>}
+                                    {yearSemesterLabel(d) && <span className="ml-1 opacity-70">({yearSemesterLabel(d)})</span>}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => openEditDepartment(d)}
-                                    className="text-muted-foreground hover:text-card-foreground"
+                                    className="p-1.5 text-muted-foreground hover:text-card-foreground"
                                     aria-label={`Edit ${d.name}`}
                                 >
                                     ✎
@@ -376,7 +398,7 @@ export default function CoursesPage() {
                                 <button
                                     type="button"
                                     onClick={() => openDuplicateDepartment(d)}
-                                    className="text-muted-foreground hover:text-card-foreground"
+                                    className="p-1.5 text-muted-foreground hover:text-card-foreground"
                                     aria-label={`Duplicate ${d.name}`}
                                     title="Duplicate this course (same students & photos) — e.g. for a new semester"
                                 >
@@ -385,7 +407,7 @@ export default function CoursesPage() {
                                 <button
                                     type="button"
                                     onClick={() => handleDeleteDepartment(d.departmentID)}
-                                    className="text-muted-foreground hover:text-destructive"
+                                    className="p-1.5 text-muted-foreground hover:text-destructive"
                                     aria-label={`Delete ${d.name}`}
                                 >
                                     ✕
@@ -401,20 +423,20 @@ export default function CoursesPage() {
                                 setDeptFormMode(null);
                                 setAddingCourse(true);
                             }}
-                            className="mt-3 rounded-lg border border-dashed border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                            className="mt-3 w-full rounded-lg border border-dashed border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-accent hover:text-accent-foreground sm:w-auto"
                         >
                             + Add Course
                         </button>
                     ) : (
-                        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end">
-                            <div className="flex flex-col gap-1">
+                        <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-3 sm:flex sm:flex-row sm:flex-wrap sm:items-end">
+                            <div className="col-span-2 flex flex-col gap-1 sm:col-auto">
                                 <label className="text-xs text-muted-foreground">Subject</label>
                                 <input
                                     value={newDept.name}
                                     onChange={(e) => setNewDept((p) => ({ ...p, name: e.target.value }))}
                                     placeholder="e.g. Data Structures"
                                     autoFocus
-                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -423,16 +445,25 @@ export default function CoursesPage() {
                                     value={newDept.courseCode}
                                     onChange={(e) => setNewDept((p) => ({ ...p, courseCode: e.target.value }))}
                                     placeholder="CSC 205"
-                                    className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-28"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className="text-xs text-muted-foreground">Level (Year/Sem)</label>
+                                <label className="text-xs text-muted-foreground">Year</label>
                                 <input
-                                    value={newDept.level}
-                                    onChange={(e) => setNewDept((p) => ({ ...p, level: e.target.value }))}
-                                    placeholder="3/2"
-                                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    value={newDept.year}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, year: e.target.value }))}
+                                    placeholder="3"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-20"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Semester</label>
+                                <input
+                                    value={newDept.semester}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, semester: e.target.value }))}
+                                    placeholder="2"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-20"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -441,7 +472,7 @@ export default function CoursesPage() {
                                     value={newDept.group}
                                     onChange={(e) => setNewDept((p) => ({ ...p, group: e.target.value }))}
                                     placeholder="A"
-                                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-24"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -449,25 +480,16 @@ export default function CoursesPage() {
                                 <input
                                     value={newDept.academicYear}
                                     onChange={(e) => setNewDept((p) => ({ ...p, academicYear: e.target.value }))}
-                                    placeholder="2082/083"
-                                    className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs text-muted-foreground">Teacher</label>
-                                <input
-                                    value={newDept.teacherName}
-                                    onChange={(e) => setNewDept((p) => ({ ...p, teacherName: e.target.value }))}
                                     onKeyDown={(e) => e.key === "Enter" && handleAddDepartment()}
-                                    placeholder="Teacher's name"
-                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    placeholder="2082/083"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-28"
                                 />
                             </div>
-                            <div className="flex gap-2">
+                            <div className="col-span-2 flex gap-2 sm:col-auto">
                                 <button
                                     type="button"
                                     onClick={handleAddDepartment}
-                                    className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground"
+                                    className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground sm:flex-none"
                                 >
                                     Save
                                 </button>
@@ -477,7 +499,7 @@ export default function CoursesPage() {
                                         setAddingCourse(false);
                                         setNewDept(emptyDeptForm);
                                     }}
-                                    className="rounded-lg border border-border bg-card px-4 py-1.5 text-sm font-semibold text-card-foreground"
+                                    className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-card-foreground sm:flex-none"
                                 >
                                     Cancel
                                 </button>
@@ -487,16 +509,16 @@ export default function CoursesPage() {
 
                     {/* Edit / Duplicate panel — shared by both actions, only one open at a time */}
                     {deptFormMode && (
-                        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-primary/40 bg-primary/5 p-3 sm:flex-row sm:flex-wrap sm:items-end">
-                            <p className="w-full text-xs font-medium text-primary">
+                        <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-primary/40 bg-primary/5 p-3 sm:flex sm:flex-row sm:flex-wrap sm:items-end">
+                            <p className="col-span-2 text-xs font-medium text-primary">
                                 {deptFormMode.type === "edit" ? "Edit course" : "Duplicate course — same students & photos"}
                             </p>
-                            <div className="flex flex-col gap-1">
+                            <div className="col-span-2 flex flex-col gap-1 sm:col-auto">
                                 <label className="text-xs text-muted-foreground">Subject</label>
                                 <input
                                     value={deptForm.name}
                                     onChange={(e) => setDeptForm((p) => ({ ...p, name: e.target.value }))}
-                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -505,16 +527,25 @@ export default function CoursesPage() {
                                     value={deptForm.courseCode}
                                     onChange={(e) => setDeptForm((p) => ({ ...p, courseCode: e.target.value }))}
                                     placeholder="CSC 205"
-                                    className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-28"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className="text-xs text-muted-foreground">Level (Year/Sem)</label>
+                                <label className="text-xs text-muted-foreground">Year</label>
                                 <input
-                                    value={deptForm.level}
-                                    onChange={(e) => setDeptForm((p) => ({ ...p, level: e.target.value }))}
-                                    placeholder="3/2"
-                                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    value={deptForm.year}
+                                    onChange={(e) => setDeptForm((p) => ({ ...p, year: e.target.value }))}
+                                    placeholder="3"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-20"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Semester</label>
+                                <input
+                                    value={deptForm.semester}
+                                    onChange={(e) => setDeptForm((p) => ({ ...p, semester: e.target.value }))}
+                                    placeholder="2"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-20"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -523,7 +554,7 @@ export default function CoursesPage() {
                                     value={deptForm.group}
                                     onChange={(e) => setDeptForm((p) => ({ ...p, group: e.target.value }))}
                                     placeholder="A"
-                                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-24"
                                 />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -532,29 +563,21 @@ export default function CoursesPage() {
                                     value={deptForm.academicYear}
                                     onChange={(e) => setDeptForm((p) => ({ ...p, academicYear: e.target.value }))}
                                     placeholder="2082/083"
-                                    className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-28"
                                 />
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs text-muted-foreground">Teacher</label>
-                                <input
-                                    value={deptForm.teacherName}
-                                    onChange={(e) => setDeptForm((p) => ({ ...p, teacherName: e.target.value }))}
-                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                                />
-                            </div>
-                            <div className="flex gap-2">
+                            <div className="col-span-2 flex gap-2 sm:col-auto">
                                 <button
                                     type="button"
                                     onClick={handleSaveDeptForm}
-                                    className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground"
+                                    className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground sm:flex-none"
                                 >
                                     {deptFormMode.type === "edit" ? "Save" : "Create copy"}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setDeptFormMode(null)}
-                                    className="rounded-lg border border-border bg-card px-4 py-1.5 text-sm font-semibold text-card-foreground"
+                                    className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-card-foreground sm:flex-none"
                                 >
                                     Cancel
                                 </button>
@@ -566,162 +589,180 @@ export default function CoursesPage() {
                 {/* ---------------- Students ---------------- */}
                 {departmentID != null && (
                     <section>
-                        <div className="mb-3 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-card-foreground">Students</h2>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <label className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent">
-                                    {importing ? "Importing…" : "Import Students"}
-                                    <input
-                                        ref={csvInputRef}
-                                        type="file"
-                                        accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                        className="hidden"
-                                        disabled={importing}
-                                        onChange={handleImportCsv}
-                                    />
-                                </label>
-                                <button
-                                    type="button"
-                                    onClick={handleEmailExportCsv}
-                                    disabled={emailingExport || !profile?.email}
-                                    title={
-                                        profile?.email
-                                            ? `Email to ${profile.email}`
-                                            : "Add an email in your profile (Customize) to enable this"
-                                    }
-                                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50"
-                                >
-                                    {emailingExport ? "Sending…" : "Email Report"}
-                                </button>
-                                <select
-                                    value={exportFormat}
-                                    onChange={(e) => setExportFormat(e.target.value as "csv" | "tsv" | "xlsx")}
-                                    className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-card-foreground"
-                                    aria-label="Download format"
-                                >
-                                    <option value="csv">CSV</option>
-                                    <option value="tsv">TSV</option>
-                                    <option value="xlsx">XLSX</option>
-                                </select>
-                                <button
-                                    type="button"
-                                    onClick={handleExportCsv}
-                                    disabled={exporting}
-                                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50"
-                                >
-                                    {exporting ? "Exporting…" : "Download Report"}
-                                </button>
-                            </div>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            <h2 className="text-lg font-semibold text-card-foreground">
+                                Students {students.length > 0 && <span className="text-muted-foreground">({students.length})</span>}
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setStudentsExpanded((v) => !v)}
+                                className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent"
+                            >
+                                {studentsExpanded ? "Hide Students" : "View Students"}
+                            </button>
                         </div>
-                        <p className="-mt-2 mb-3 text-xs text-muted-foreground">
-                            Import accepts .csv, .tsv, or .xlsx — two columns per row, roll no then name (header row
-                            optional). Export: roll no, name, one column per finished session (P/A), total
-                            attendance, total classes, percentage. Pick CSV/TSV/XLSX before downloading — XLSX opens
-                            directly in Excel/Sheets/WPS on mobile. &quot;Email Report&quot; always sends a .csv
-                            attachment regardless of the dropdown, to the email in your profile — manage your Resend
-                            key on the{" "}
-                            <a href="/settings" className="underline">
-                                Settings
-                            </a>{" "}
-                            page.
-                        </p>
 
-                        <div className="overflow-hidden rounded-2xl border border-border">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted text-left text-muted-foreground">
-                                    <tr>
-                                        <th className="w-16 px-4 py-2">Photo</th>
-                                        <th className="w-20 px-4 py-2">Roll No.</th>
-                                        <th className="px-4 py-2">Name</th>
-                                        <th className="w-12 px-4 py-2" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {students.map((s) => (
-                                        <tr key={s.studentID} className="border-t border-border">
-                                            <td className="px-4 py-2">
-                                                <label className="block cursor-pointer">
-                                                    {photoUrls[s.studentID] ? (
-                                                        <img
-                                                            src={photoUrls[s.studentID]}
-                                                            alt={s.name}
-                                                            className="h-10 w-10 rounded-full object-cover"
+                        {studentsExpanded && (
+                            <>
+                                <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                                    <label className="col-span-2 cursor-pointer rounded-lg border border-border bg-card px-3 py-2.5 text-center text-sm font-semibold text-card-foreground hover:bg-accent sm:col-auto sm:py-1.5">
+                                        {importing ? "Importing…" : "Import Students"}
+                                        <input
+                                            ref={csvInputRef}
+                                            type="file"
+                                            accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                            className="hidden"
+                                            disabled={importing}
+                                            onChange={handleImportCsv}
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={handleEmailExportCsv}
+                                        disabled={emailingExport || !profile?.email}
+                                        title={
+                                            profile?.email
+                                                ? `Email to ${profile.email}`
+                                                : "Add an email in your profile (Customize) to enable this"
+                                        }
+                                        className="col-span-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:col-auto sm:py-1.5"
+                                    >
+                                        {emailingExport ? "Sending…" : "Email Report"}
+                                    </button>
+                                    <select
+                                        value={exportFormat}
+                                        onChange={(e) => setExportFormat(e.target.value as "csv" | "tsv" | "xlsx")}
+                                        className="rounded-lg border border-border bg-card px-2 py-2.5 text-sm text-card-foreground sm:py-1.5"
+                                        aria-label="Download format"
+                                    >
+                                        <option value="csv">CSV</option>
+                                        <option value="tsv">TSV</option>
+                                        <option value="xlsx">XLSX</option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={handleExportCsv}
+                                        disabled={exporting}
+                                        className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:py-1.5"
+                                    >
+                                        {exporting ? "Exporting…" : "Download Report"}
+                                    </button>
+                                </div>
+                                <p className="mb-3 text-xs text-muted-foreground">
+                                    Import accepts .csv, .tsv, or .xlsx — two columns per row, roll no then name
+                                    (header row optional). Export: roll no, name, one column per finished session
+                                    (P/A), total attendance, total classes, percentage. Pick CSV/TSV/XLSX before
+                                    downloading — XLSX opens directly in Excel/Sheets/WPS on mobile. &quot;Email
+                                    Report&quot; always sends a .csv attachment regardless of the dropdown, to the
+                                    email in your profile, with the teacher name on the report taken from your
+                                    profile too — manage both on the{" "}
+                                    <a href="/settings" className="underline">
+                                        Settings
+                                    </a>{" "}
+                                    page.
+                                </p>
+
+                                <div className="overflow-hidden rounded-2xl border border-border">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[420px] text-sm">
+                                            <thead className="bg-muted text-left text-muted-foreground">
+                                                <tr>
+                                                    <th className="w-16 px-3 py-2 sm:px-4">Photo</th>
+                                                    <th className="w-20 px-3 py-2 sm:px-4">Roll No.</th>
+                                                    <th className="px-3 py-2 sm:px-4">Name</th>
+                                                    <th className="w-14 px-3 py-2 sm:px-4" />
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {students.map((s) => (
+                                                    <tr key={s.studentID} className="border-t border-border">
+                                                        <td className="px-3 py-2 sm:px-4">
+                                                            <label className="block cursor-pointer">
+                                                                {photoUrls[s.studentID] ? (
+                                                                    <img
+                                                                        src={photoUrls[s.studentID]}
+                                                                        alt={s.name}
+                                                                        className="h-10 w-10 rounded-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                                                                        +
+                                                                    </span>
+                                                                )}
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/*"
+                                                                    className="hidden"
+                                                                    onChange={(e) => handlePhotoChange(s.studentID, e)}
+                                                                />
+                                                            </label>
+                                                        </td>
+                                                        <td className="px-3 py-2 tabular-nums sm:px-4">{s.rollNumber}</td>
+                                                        <td className="px-3 py-2 sm:px-4">{s.name}</td>
+                                                        <td className="px-1 py-2 text-right sm:px-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeleteStudent(s.studentID)}
+                                                                className="flex h-9 w-9 items-center justify-center rounded-full text-base text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                                aria-label={`Delete ${s.name}`}
+                                                                title="Remove student"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+
+                                                {/* add-student row */}
+                                                <tr className="border-t border-border bg-muted/40">
+                                                    <td className="px-3 py-2 sm:px-4">
+                                                        <label className="block cursor-pointer">
+                                                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                                                                {newPhoto ? "✓" : "+"}
+                                                            </span>
+                                                            <input
+                                                                ref={newPhotoInputRef}
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                onChange={(e) => setNewPhoto(e.target.files?.[0] ?? null)}
+                                                            />
+                                                        </label>
+                                                    </td>
+                                                    <td className="px-3 py-2 sm:px-4">
+                                                        <input
+                                                            value={newStudent.rollNumber}
+                                                            onChange={(e) => setNewStudent((p) => ({ ...p, rollNumber: e.target.value }))}
+                                                            placeholder="#"
+                                                            inputMode="numeric"
+                                                            className="w-14 rounded-lg border border-border bg-card px-2 py-1.5"
                                                         />
-                                                    ) : (
-                                                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                                                            +
-                                                        </span>
-                                                    )}
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        className="hidden"
-                                                        onChange={(e) => handlePhotoChange(s.studentID, e)}
-                                                    />
-                                                </label>
-                                            </td>
-                                            <td className="px-4 py-2 tabular-nums">{s.rollNumber}</td>
-                                            <td className="px-4 py-2">{s.name}</td>
-                                            <td className="px-4 py-2 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteStudent(s.studentID)}
-                                                    className="text-muted-foreground hover:text-destructive"
-                                                    aria-label={`Delete ${s.name}`}
-                                                >
-                                                    ✕
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-
-                                    {/* add-student row */}
-                                    <tr className="border-t border-border bg-muted/40">
-                                        <td className="px-4 py-2">
-                                            <label className="block cursor-pointer">
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                                                    {newPhoto ? "✓" : "+"}
-                                                </span>
-                                                <input
-                                                    ref={newPhotoInputRef}
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    onChange={(e) => setNewPhoto(e.target.files?.[0] ?? null)}
-                                                />
-                                            </label>
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <input
-                                                value={newStudent.rollNumber}
-                                                onChange={(e) => setNewStudent((p) => ({ ...p, rollNumber: e.target.value }))}
-                                                placeholder="#"
-                                                inputMode="numeric"
-                                                className="w-16 rounded-lg border border-border bg-card px-2 py-1"
-                                            />
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <input
-                                                value={newStudent.name}
-                                                onChange={(e) => setNewStudent((p) => ({ ...p, name: e.target.value }))}
-                                                onKeyDown={(e) => e.key === "Enter" && handleAddStudent()}
-                                                placeholder="Student name"
-                                                className="w-full rounded-lg border border-border bg-card px-2 py-1"
-                                            />
-                                        </td>
-                                        <td className="px-4 py-2 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={handleAddStudent}
-                                                className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
-                                            >
-                                                Add
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-2 sm:px-4">
+                                                        <input
+                                                            value={newStudent.name}
+                                                            onChange={(e) => setNewStudent((p) => ({ ...p, name: e.target.value }))}
+                                                            onKeyDown={(e) => e.key === "Enter" && handleAddStudent()}
+                                                            placeholder="Student name"
+                                                            className="w-full rounded-lg border border-border bg-card px-2 py-1.5"
+                                                        />
+                                                    </td>
+                                                    <td className="px-1 py-2 text-right sm:px-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleAddStudent}
+                                                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                                                        >
+                                                            Add
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </section>
                 )}
             </div>

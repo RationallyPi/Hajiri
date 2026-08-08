@@ -131,10 +131,10 @@ function escapeTsvField(value: string): string {
 // The letterhead's institution/department/professor name come from the
 // professor's Profile (Settings/Customize), not from the per-course
 // Department record — those stay the same across every course a professor
-// teaches, so they're a caller-supplied param rather than pulled off
-// `data.department` (which only holds a per-course `teacherName` set once
-// when the course was created, and can go stale). Blank values fall back to
-// a dotted placeholder line.
+// teaches. In particular, the teacher's name is *only* ever pulled from
+// Profile (via `letterhead.professorName`) — the Department record has no
+// teacher field of its own. Blank values fall back to a dotted placeholder
+// line.
 export function buildAttendanceExportGrid(
     data: DepartmentAttendanceExport,
     letterhead: ExportLetterhead,
@@ -151,7 +151,6 @@ export function buildAttendanceExportGrid(
     // --- Letterhead ---
     rows.push(centeredRowCells(letterhead.institution.trim() || "Institution .................", totalCols, centerCol));
     rows.push(centeredRowCells(letterhead.department.trim() || "Department .................", totalCols, centerCol));
-    rows.push(centeredRowCells("Pokhara Campus, Pokhara", totalCols, centerCol));
     rows.push(
         centeredRowCells(
             department.academicYear ? `Academic Year: ${department.academicYear}` : "Academic Year .................",
@@ -162,7 +161,8 @@ export function buildAttendanceExportGrid(
     rows.push([]);
 
     // --- Class details, left-aligned ---
-    rows.push([`Level: ${department.level}`]);
+    rows.push([`Year: ${department.year}`]);
+    rows.push([`Semester: ${department.semester}`]);
     rows.push([`Subject: ${department.name}`]);
     rows.push([`Course Code: ${department.courseCode}`]);
     rows.push([`Group: ${department.group}`]);
