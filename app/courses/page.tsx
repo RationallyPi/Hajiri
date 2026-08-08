@@ -18,7 +18,8 @@ import {
     updateDepartment,
     updateStudent,
 } from "../lib/queries";
-import { buildAttendanceExportCsv, parseStudentsCsv } from "../lib/csv";
+import { buildAttendanceExportCsv, buildAttendanceExportTsv, parseStudentsCsv } from "../lib/csv";
+import { buildAttendanceExportXlsx } from "../lib/xlsx";
 
 export default function CoursesPage() {
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -48,6 +49,7 @@ export default function CoursesPage() {
     const csvInputRef = useRef<HTMLInputElement>(null);
     const [importing, setImporting] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [exportFormat, setExportFormat] = useState<"csv" | "tsv" | "xlsx">("csv");
     const [emailingExport, setEmailingExport] = useState(false);
     // Read-only here — the profile's email/Resend key are edited on the
     // Settings page; this page just needs them to know whether "Email CSV"
@@ -200,10 +202,20 @@ export default function CoursesPage() {
         }
     };
 
-    // Shared by both the download and email actions — builds the CSV and a
-    // filesystem-safe filename, or returns null (after alerting) if there's
-    // nothing to export yet.
-    const buildExportForDownload = async () => {
+    // "Download" supports CSV/TSV/XLSX (picked via the format dropdown);
+    // "Email CSV" always sends CSV specifically, since that's the safest
+    // attachment format for a mail client to render/preview inline.
+
+    const currentLetterhead = () => ({
+        institution: profile?.institution ?? "",
+        department: profile?.department ?? "",
+        professorName: profile?.professorName ?? "",
+    });
+
+    // Shared by both the download and email actions — fetches the course's
+    // attendance data and builds a filesystem-safe filename base, or returns
+    // null (after alerting) if there's nothing to export yet.
+    const loadExportData = async () => {
         if (departmentID == null) return null;
 
         const data = await getDepartmentAttendanceExport(departmentID);
@@ -212,28 +224,37 @@ export default function CoursesPage() {
             return null;
         }
 
-        const csv = buildAttendanceExportCsv(data, {
-            institution: profile?.institution ?? "",
-            department: profile?.department ?? "",
-            professorName: profile?.professorName ?? "",
-        });
-        const safeName = data.department.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
-        const filename = `${safeName || "attendance"}_attendance.csv`;
-        return { csv, filename, department: data.department };
+        const safeName = data.department.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "attendance";
+        return { data, safeName };
     };
 
     const handleExportCsv = async () => {
         setExporting(true);
         try {
-            const result = await buildExportForDownload();
-            if (!result) return;
+            const loaded = await loadExportData();
+            if (!loaded) return;
+            const { data, safeName } = loaded;
+            const letterhead = currentLetterhead();
 
-            const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
+            let blob: Blob;
+            let filename: string;
+            if (exportFormat === "xlsx") {
+                blob = buildAttendanceExportXlsx(data, letterhead);
+                filename = `${safeName}_attendance.xlsx`;
+            } else if (exportFormat === "tsv") {
+                blob = new Blob([buildAttendanceExportTsv(data, letterhead)], {
+                    type: "text/tab-separated-values;charset=utf-8;",
+                });
+                filename = `${safeName}_attendance.tsv`;
+            } else {
+                blob = new Blob([buildAttendanceExportCsv(data, letterhead)], { type: "text/csv;charset=utf-8;" });
+                filename = `${safeName}_attendance.csv`;
+            }
+
             const url = URL.createObjectURL(blob);
-
             const a = document.createElement("a");
             a.href = url;
-            a.download = result.filename;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
         } finally {
@@ -246,17 +267,20 @@ export default function CoursesPage() {
 
         setEmailingExport(true);
         try {
-            const result = await buildExportForDownload();
-            if (!result) return;
+            const loaded = await loadExportData();
+            if (!loaded) return;
+            const { data, safeName } = loaded;
+            const csv = buildAttendanceExportCsv(data, currentLetterhead());
+            const filename = `${safeName}_attendance.csv`;
 
             const res = await fetch("/api/send-attendance-export", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     to: profile.email,
-                    subject: `Attendance export — ${result.department.name}`,
-                    filename: result.filename,
-                    csv: result.csv,
+                    subject: `Attendance export — ${data.department.name}`,
+                    filename,
+                    csv,
                     apiKey: profile.resendApiKey || undefined,
                     from: profile.resendFromEmail || undefined,
                 }),
@@ -506,14 +530,24 @@ export default function CoursesPage() {
                     <section>
                         <div className="mb-3 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-card-foreground">Students</h2>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                    value={exportFormat}
+                                    onChange={(e) => setExportFormat(e.target.value as "csv" | "tsv" | "xlsx")}
+                                    className="rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-card-foreground"
+                                    aria-label="Download format"
+                                >
+                                    <option value="csv">CSV</option>
+                                    <option value="tsv">TSV</option>
+                                    <option value="xlsx">XLSX</option>
+                                </select>
                                 <button
                                     type="button"
                                     onClick={handleExportCsv}
                                     disabled={exporting}
                                     className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50"
                                 >
-                                    {exporting ? "Exporting…" : "Download CSV"}
+                                    {exporting ? "Exporting…" : "Download"}
                                 </button>
                                 <button
                                     type="button"
@@ -544,8 +578,9 @@ export default function CoursesPage() {
                         <p className="-mt-2 mb-3 text-xs text-muted-foreground">
                             Import: two columns per row, roll no, name (header row optional). Export: roll no, name,
                             one column per finished session (P/A), total attendance, total classes, percentage.
-                            &quot;Email CSV&quot; sends the same file to the email in your profile — manage your
-                            Resend key on the{" "}
+                            Pick CSV/TSV/XLSX before downloading — XLSX opens directly in Excel/Sheets/WPS on
+                            mobile. &quot;Email CSV&quot; always sends a .csv attachment regardless of the dropdown,
+                            to the email in your profile — manage your Resend key on the{" "}
                             <a href="/settings" className="underline">
                                 Settings
                             </a>{" "}

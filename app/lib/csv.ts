@@ -78,15 +78,18 @@ function buildSessionDateLabels(sessions: Session[]): string[] {
     });
 }
 
-// A CSV has no real "bold" or "centered" styling, but when opened in Excel/
-// Sheets each row lines up under the same columns as the table below it — so
-// putting a line of text in the middle column of an otherwise-empty row reads
-// as centered relative to the table's width once opened. That's the trick
-// used for the university letterhead block below.
-function centeredRow(text: string, totalCols: number, centerCol: number): string {
+export type ExportLetterhead = { institution: string; department: string; professorName: string };
+
+// A CSV/TSV has no real "bold" or "centered" styling, but when opened in
+// Excel/Sheets each row lines up under the same columns as the table below
+// it — so putting a value in the middle column of an otherwise-empty row
+// reads as centered relative to the table's width once opened. That's the
+// trick used for the letterhead block below. (The XLSX export in xlsx.ts
+// does this properly with real merged cells instead.)
+function centeredRowCells(text: string, totalCols: number, centerCol: number): string[] {
     const row = new Array(totalCols).fill("");
     row[centerCol] = text;
-    return row.map(escapeCsvField).join(",");
+    return row;
 }
 
 function escapeCsvField(value: string): string {
@@ -96,24 +99,32 @@ function escapeCsvField(value: string): string {
     return value;
 }
 
-// Letterhead + class details + Roll No/Name/<session P-A columns>/Total
-// Attendance/Total Classes/Percentage + teacher sign-off. Percentage is
-// present / total finished sessions for the course — an unmarked cell counts
-// against the denominator but isn't itself P or A, since "wasn't marked" and
-// "was marked absent" are different things worth keeping visually distinct.
+// TSV has no standard quoting convention — the usual approach is just to
+// strip characters that would break the format (tabs, newlines) rather than
+// wrap fields in quotes the way CSV does.
+function escapeTsvField(value: string): string {
+    return value.replace(/\t/g, " ").replace(/\r?\n/g, " ");
+}
+
+// Builds the export as a plain grid of string cells — letterhead, class
+// details, the attendance table, and the sign-off — with no delimiter or
+// escaping applied yet. Shared by the CSV, TSV, and XLSX exporters so the
+// actual content/layout only has to be defined once. Percentage is present /
+// total finished sessions for the course — an unmarked cell counts against
+// the denominator but isn't itself P or A, since "wasn't marked" and "was
+// marked absent" are different things worth keeping visually distinct.
 //
-// The top two letterhead lines (institution + department) and the sign-off
-// name come from the professor's Profile (Settings/Customize), not from the
-// per-course Department record — a professor's institution/department/name
-// stays the same across every course they teach, so these are caller-supplied
-// params rather than pulled off `data.department` (which only holds a
-// per-course `teacherName` set once when the course was created, and can go
-// stale). Blank values fall back to a dotted placeholder line, same pattern
-// as the existing Academic Year field.
-export function buildAttendanceExportCsv(
+// The letterhead's institution/department/professor name come from the
+// professor's Profile (Settings/Customize), not from the per-course
+// Department record — those stay the same across every course a professor
+// teaches, so they're a caller-supplied param rather than pulled off
+// `data.department` (which only holds a per-course `teacherName` set once
+// when the course was created, and can go stale). Blank values fall back to
+// a dotted placeholder line.
+export function buildAttendanceExportGrid(
     data: DepartmentAttendanceExport,
-    letterhead: { institution: string; department: string; professorName: string },
-): string {
+    letterhead: ExportLetterhead,
+): string[][] {
     const { department, students, sessions, attendanceBySession } = data;
     const sessionLabels = buildSessionDateLabels(sessions);
 
@@ -121,42 +132,30 @@ export function buildAttendanceExportCsv(
     const totalCols = header.length;
     const centerCol = Math.floor((totalCols - 1) / 2);
 
-    const lines: string[] = [];
+    const rows: string[][] = [];
 
     // --- Letterhead ---
-    lines.push(
-        centeredRow(
-            letterhead.institution.trim() || "Institution .................",
-            totalCols,
-            centerCol,
-        ),
-    );
-    lines.push(
-        centeredRow(
-            letterhead.department.trim() || "Department .................",
-            totalCols,
-            centerCol,
-        ),
-    );
-    lines.push(centeredRow("Pokhara Campus, Pokhara", totalCols, centerCol));
-    lines.push(
-        centeredRow(
+    rows.push(centeredRowCells(letterhead.institution.trim() || "Institution .................", totalCols, centerCol));
+    rows.push(centeredRowCells(letterhead.department.trim() || "Department .................", totalCols, centerCol));
+    rows.push(centeredRowCells("Pokhara Campus, Pokhara", totalCols, centerCol));
+    rows.push(
+        centeredRowCells(
             department.academicYear ? `Academic Year: ${department.academicYear}` : "Academic Year .................",
             totalCols,
             centerCol,
         ),
     );
-    lines.push("");
+    rows.push([]);
 
     // --- Class details, left-aligned ---
-    lines.push(escapeCsvField(`Level: ${department.level}`));
-    lines.push(escapeCsvField(`Subject: ${department.name}`));
-    lines.push(escapeCsvField(`Course Code: ${department.courseCode}`));
-    lines.push(escapeCsvField(`Group: ${department.group}`));
-    lines.push("");
+    rows.push([`Level: ${department.level}`]);
+    rows.push([`Subject: ${department.name}`]);
+    rows.push([`Course Code: ${department.courseCode}`]);
+    rows.push([`Group: ${department.group}`]);
+    rows.push([]);
 
     // --- Attendance table ---
-    lines.push(header.map(escapeCsvField).join(","));
+    rows.push(header);
 
     for (const student of students) {
         let present = 0;
@@ -173,23 +172,32 @@ export function buildAttendanceExportCsv(
         const totalClasses = sessions.length;
         const percentage = totalClasses > 0 ? Math.round((present / totalClasses) * 100) : 0;
 
-        const row = [
+        rows.push([
             String(student.rollNumber),
             student.name,
             ...cells,
             String(present),
             String(totalClasses),
             `${percentage}%`,
-        ];
-        lines.push(row.map(escapeCsvField).join(","));
+        ]);
     }
 
     // --- Sign-off ---
-    lines.push("");
-    lines.push("");
-    lines.push(escapeCsvField(`Teacher: ${letterhead.professorName.trim() || "................."}`));
-    lines.push("");
-    lines.push(escapeCsvField("Signature: ______________________"));
+    rows.push([]);
+    rows.push([]);
+    rows.push([`Teacher: ${letterhead.professorName.trim() || "................."}`]);
+    rows.push([]);
+    rows.push(["Signature: ______________________"]);
 
-    return lines.join("\r\n");
+    return rows;
+}
+
+export function buildAttendanceExportCsv(data: DepartmentAttendanceExport, letterhead: ExportLetterhead): string {
+    const grid = buildAttendanceExportGrid(data, letterhead);
+    return grid.map((row) => row.map(escapeCsvField).join(",")).join("\r\n");
+}
+
+export function buildAttendanceExportTsv(data: DepartmentAttendanceExport, letterhead: ExportLetterhead): string {
+    const grid = buildAttendanceExportGrid(data, letterhead);
+    return grid.map((row) => row.map(escapeTsvField).join("\t")).join("\r\n");
 }
