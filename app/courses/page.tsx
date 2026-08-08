@@ -586,6 +586,79 @@ export default function CoursesPage() {
                     )}
                 </section>
 
+                {/* ---------------- Import Students ---------------- */}
+                {departmentID != null && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold text-card-foreground">Import Students</h2>
+                        <label className="inline-block w-full cursor-pointer rounded-lg border border-border bg-card px-4 py-2.5 text-center text-sm font-semibold text-card-foreground hover:bg-accent sm:w-auto">
+                            {importing ? "Importing…" : "Import Students"}
+                            <input
+                                ref={csvInputRef}
+                                type="file"
+                                accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                className="hidden"
+                                disabled={importing}
+                                onChange={handleImportCsv}
+                            />
+                        </label>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            Accepts .csv, .tsv, or .xlsx — two columns per row, roll no then name (header row
+                            optional).
+                        </p>
+                    </section>
+                )}
+
+                {/* ---------------- Attendance Report ---------------- */}
+                {departmentID != null && (
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold text-card-foreground">Attendance Report</h2>
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                            <button
+                                type="button"
+                                onClick={handleEmailExportCsv}
+                                disabled={emailingExport || !profile?.email}
+                                title={
+                                    profile?.email
+                                        ? `Email to ${profile.email}`
+                                        : "Add an email in your profile (Customize) to enable this"
+                                }
+                                className="col-span-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:col-auto sm:py-1.5"
+                            >
+                                {emailingExport ? "Sending…" : "Email Report"}
+                            </button>
+                            <select
+                                value={exportFormat}
+                                onChange={(e) => setExportFormat(e.target.value as "csv" | "tsv" | "xlsx")}
+                                className="rounded-lg border border-border bg-card px-2 py-2.5 text-sm text-card-foreground sm:py-1.5"
+                                aria-label="Download format"
+                            >
+                                <option value="csv">CSV</option>
+                                <option value="tsv">TSV</option>
+                                <option value="xlsx">XLSX</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={handleExportCsv}
+                                disabled={exporting}
+                                className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:py-1.5"
+                            >
+                                {exporting ? "Exporting…" : "Download Report"}
+                            </button>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            Roll no, name, one column per finished session (P/A), total attendance, total classes,
+                            percentage. Pick CSV/TSV/XLSX before downloading — XLSX opens directly in
+                            Excel/Sheets/WPS on mobile. &quot;Email Report&quot; always sends a .csv attachment
+                            regardless of the dropdown, to the email in your profile, with the teacher name on the
+                            report taken from your profile too — manage both on the{" "}
+                            <a href="/settings" className="underline">
+                                Settings
+                            </a>{" "}
+                            page.
+                        </p>
+                    </section>
+                )}
+
                 {/* ---------------- Students ---------------- */}
                 {departmentID != null && (
                     <section>
@@ -603,165 +676,105 @@ export default function CoursesPage() {
                         </div>
 
                         {studentsExpanded && (
-                            <>
-                                <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                                    <label className="col-span-2 cursor-pointer rounded-lg border border-border bg-card px-3 py-2.5 text-center text-sm font-semibold text-card-foreground hover:bg-accent sm:col-auto sm:py-1.5">
-                                        {importing ? "Importing…" : "Import Students"}
-                                        <input
-                                            ref={csvInputRef}
-                                            type="file"
-                                            accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                            className="hidden"
-                                            disabled={importing}
-                                            onChange={handleImportCsv}
-                                        />
-                                    </label>
-                                    <button
-                                        type="button"
-                                        onClick={handleEmailExportCsv}
-                                        disabled={emailingExport || !profile?.email}
-                                        title={
-                                            profile?.email
-                                                ? `Email to ${profile.email}`
-                                                : "Add an email in your profile (Customize) to enable this"
-                                        }
-                                        className="col-span-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:col-auto sm:py-1.5"
-                                    >
-                                        {emailingExport ? "Sending…" : "Email Report"}
-                                    </button>
-                                    <select
-                                        value={exportFormat}
-                                        onChange={(e) => setExportFormat(e.target.value as "csv" | "tsv" | "xlsx")}
-                                        className="rounded-lg border border-border bg-card px-2 py-2.5 text-sm text-card-foreground sm:py-1.5"
-                                        aria-label="Download format"
-                                    >
-                                        <option value="csv">CSV</option>
-                                        <option value="tsv">TSV</option>
-                                        <option value="xlsx">XLSX</option>
-                                    </select>
-                                    <button
-                                        type="button"
-                                        onClick={handleExportCsv}
-                                        disabled={exporting}
-                                        className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:py-1.5"
-                                    >
-                                        {exporting ? "Exporting…" : "Download Report"}
-                                    </button>
-                                </div>
-                                <p className="mb-3 text-xs text-muted-foreground">
-                                    Import accepts .csv, .tsv, or .xlsx — two columns per row, roll no then name
-                                    (header row optional). Export: roll no, name, one column per finished session
-                                    (P/A), total attendance, total classes, percentage. Pick CSV/TSV/XLSX before
-                                    downloading — XLSX opens directly in Excel/Sheets/WPS on mobile. &quot;Email
-                                    Report&quot; always sends a .csv attachment regardless of the dropdown, to the
-                                    email in your profile, with the teacher name on the report taken from your
-                                    profile too — manage both on the{" "}
-                                    <a href="/settings" className="underline">
-                                        Settings
-                                    </a>{" "}
-                                    page.
-                                </p>
-
-                                <div className="overflow-hidden rounded-2xl border border-border">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full min-w-[420px] text-sm">
-                                            <thead className="bg-muted text-left text-muted-foreground">
-                                                <tr>
-                                                    <th className="w-16 px-3 py-2 sm:px-4">Photo</th>
-                                                    <th className="w-20 px-3 py-2 sm:px-4">Roll No.</th>
-                                                    <th className="px-3 py-2 sm:px-4">Name</th>
-                                                    <th className="w-14 px-3 py-2 sm:px-4" />
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {students.map((s) => (
-                                                    <tr key={s.studentID} className="border-t border-border">
-                                                        <td className="px-3 py-2 sm:px-4">
-                                                            <label className="block cursor-pointer">
-                                                                {photoUrls[s.studentID] ? (
-                                                                    <img
-                                                                        src={photoUrls[s.studentID]}
-                                                                        alt={s.name}
-                                                                        className="h-10 w-10 rounded-full object-cover"
-                                                                    />
-                                                                ) : (
-                                                                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                                                                        +
-                                                                    </span>
-                                                                )}
-                                                                <input
-                                                                    type="file"
-                                                                    accept="image/*"
-                                                                    className="hidden"
-                                                                    onChange={(e) => handlePhotoChange(s.studentID, e)}
-                                                                />
-                                                            </label>
-                                                        </td>
-                                                        <td className="px-3 py-2 tabular-nums sm:px-4">{s.rollNumber}</td>
-                                                        <td className="px-3 py-2 sm:px-4">{s.name}</td>
-                                                        <td className="px-1 py-2 text-right sm:px-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleDeleteStudent(s.studentID)}
-                                                                className="flex h-9 w-9 items-center justify-center rounded-full text-base text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                                                aria-label={`Delete ${s.name}`}
-                                                                title="Remove student"
-                                                            >
-                                                                ✕
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-
-                                                {/* add-student row */}
-                                                <tr className="border-t border-border bg-muted/40">
+                            <div className="overflow-hidden rounded-2xl border border-border">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[420px] text-sm">
+                                        <thead className="bg-muted text-left text-muted-foreground">
+                                            <tr>
+                                                <th className="w-16 px-3 py-2 sm:px-4">Photo</th>
+                                                <th className="w-20 px-3 py-2 sm:px-4">Roll No.</th>
+                                                <th className="px-3 py-2 sm:px-4">Name</th>
+                                                <th className="w-14 px-3 py-2 sm:px-4" />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {students.map((s) => (
+                                                <tr key={s.studentID} className="border-t border-border">
                                                     <td className="px-3 py-2 sm:px-4">
                                                         <label className="block cursor-pointer">
-                                                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                                                                {newPhoto ? "✓" : "+"}
-                                                            </span>
+                                                            {photoUrls[s.studentID] ? (
+                                                                <img
+                                                                    src={photoUrls[s.studentID]}
+                                                                    alt={s.name}
+                                                                    className="h-10 w-10 rounded-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                                                                    +
+                                                                </span>
+                                                            )}
                                                             <input
-                                                                ref={newPhotoInputRef}
                                                                 type="file"
                                                                 accept="image/*"
                                                                 className="hidden"
-                                                                onChange={(e) => setNewPhoto(e.target.files?.[0] ?? null)}
+                                                                onChange={(e) => handlePhotoChange(s.studentID, e)}
                                                             />
                                                         </label>
                                                     </td>
-                                                    <td className="px-3 py-2 sm:px-4">
-                                                        <input
-                                                            value={newStudent.rollNumber}
-                                                            onChange={(e) => setNewStudent((p) => ({ ...p, rollNumber: e.target.value }))}
-                                                            placeholder="#"
-                                                            inputMode="numeric"
-                                                            className="w-14 rounded-lg border border-border bg-card px-2 py-1.5"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2 sm:px-4">
-                                                        <input
-                                                            value={newStudent.name}
-                                                            onChange={(e) => setNewStudent((p) => ({ ...p, name: e.target.value }))}
-                                                            onKeyDown={(e) => e.key === "Enter" && handleAddStudent()}
-                                                            placeholder="Student name"
-                                                            className="w-full rounded-lg border border-border bg-card px-2 py-1.5"
-                                                        />
-                                                    </td>
+                                                    <td className="px-3 py-2 tabular-nums sm:px-4">{s.rollNumber}</td>
+                                                    <td className="px-3 py-2 sm:px-4">{s.name}</td>
                                                     <td className="px-1 py-2 text-right sm:px-2">
                                                         <button
                                                             type="button"
-                                                            onClick={handleAddStudent}
-                                                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                                                            onClick={() => handleDeleteStudent(s.studentID)}
+                                                            className="flex h-9 w-9 items-center justify-center rounded-full text-base text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                            aria-label={`Delete ${s.name}`}
+                                                            title="Remove student"
                                                         >
-                                                            Add
+                                                            ✕
                                                         </button>
                                                     </td>
                                                 </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                            ))}
+
+                                            {/* add-student row */}
+                                            <tr className="border-t border-border bg-muted/40">
+                                                <td className="px-3 py-2 sm:px-4">
+                                                    <label className="block cursor-pointer">
+                                                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                                                            {newPhoto ? "✓" : "+"}
+                                                        </span>
+                                                        <input
+                                                            ref={newPhotoInputRef}
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={(e) => setNewPhoto(e.target.files?.[0] ?? null)}
+                                                        />
+                                                    </label>
+                                                </td>
+                                                <td className="px-3 py-2 sm:px-4">
+                                                    <input
+                                                        value={newStudent.rollNumber}
+                                                        onChange={(e) => setNewStudent((p) => ({ ...p, rollNumber: e.target.value }))}
+                                                        placeholder="#"
+                                                        inputMode="numeric"
+                                                        className="w-14 rounded-lg border border-border bg-card px-2 py-1.5"
+                                                    />
+                                                </td>
+                                                <td className="px-3 py-2 sm:px-4">
+                                                    <input
+                                                        value={newStudent.name}
+                                                        onChange={(e) => setNewStudent((p) => ({ ...p, name: e.target.value }))}
+                                                        onKeyDown={(e) => e.key === "Enter" && handleAddStudent()}
+                                                        placeholder="Student name"
+                                                        className="w-full rounded-lg border border-border bg-card px-2 py-1.5"
+                                                    />
+                                                </td>
+                                                <td className="px-1 py-2 text-right sm:px-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAddStudent}
+                                                        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                                                    >
+                                                        Add
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                            </>
+                            </div>
                         )}
                     </section>
                 )}

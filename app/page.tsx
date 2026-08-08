@@ -32,7 +32,6 @@ export default function Home() {
 
         {/* Customize + Settings + History entry points */}
         <div className="absolute right-6 top-6 flex gap-1">
-          <CustomizeButton />
           <Link
             href="/sessions"
             className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
