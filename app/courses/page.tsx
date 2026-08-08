@@ -212,7 +212,11 @@ export default function CoursesPage() {
             return null;
         }
 
-        const csv = buildAttendanceExportCsv(data);
+        const csv = buildAttendanceExportCsv(data, {
+            institution: profile?.institution ?? "",
+            department: profile?.department ?? "",
+            professorName: profile?.professorName ?? "",
+        });
         const safeName = data.department.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
         const filename = `${safeName || "attendance"}_attendance.csv`;
         return { csv, filename, department: data.department };

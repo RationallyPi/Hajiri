@@ -113,12 +113,10 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
             setShowUnmarkedModal(true);
             return;
         }
-        await finishSession(sessionID); // no-op if it's already finished — just re-affirms it
+        await finishSession(sessionID);
         router.push(`/summary/${sessionID}`);
     };
 
-    // Jumps straight to the first unmarked student and dismisses the modal —
-    // lets the teacher act on the warning instead of just reading it.
     const goToFirstUnmarked = () => {
         const idx = roster.findIndex((r) => r.status === "unmarked");
         if (idx !== -1) setActiveIndex(idx);

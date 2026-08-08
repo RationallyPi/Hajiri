@@ -101,7 +101,19 @@ function escapeCsvField(value: string): string {
 // present / total finished sessions for the course — an unmarked cell counts
 // against the denominator but isn't itself P or A, since "wasn't marked" and
 // "was marked absent" are different things worth keeping visually distinct.
-export function buildAttendanceExportCsv(data: DepartmentAttendanceExport): string {
+//
+// The top two letterhead lines (institution + department) and the sign-off
+// name come from the professor's Profile (Settings/Customize), not from the
+// per-course Department record — a professor's institution/department/name
+// stays the same across every course they teach, so these are caller-supplied
+// params rather than pulled off `data.department` (which only holds a
+// per-course `teacherName` set once when the course was created, and can go
+// stale). Blank values fall back to a dotted placeholder line, same pattern
+// as the existing Academic Year field.
+export function buildAttendanceExportCsv(
+    data: DepartmentAttendanceExport,
+    letterhead: { institution: string; department: string; professorName: string },
+): string {
     const { department, students, sessions, attendanceBySession } = data;
     const sessionLabels = buildSessionDateLabels(sessions);
 
@@ -112,8 +124,20 @@ export function buildAttendanceExportCsv(data: DepartmentAttendanceExport): stri
     const lines: string[] = [];
 
     // --- Letterhead ---
-    lines.push(centeredRow("Tribhuvan University", totalCols, centerCol));
-    lines.push(centeredRow("Institute of Forestry", totalCols, centerCol));
+    lines.push(
+        centeredRow(
+            letterhead.institution.trim() || "Institution .................",
+            totalCols,
+            centerCol,
+        ),
+    );
+    lines.push(
+        centeredRow(
+            letterhead.department.trim() || "Department .................",
+            totalCols,
+            centerCol,
+        ),
+    );
     lines.push(centeredRow("Pokhara Campus, Pokhara", totalCols, centerCol));
     lines.push(
         centeredRow(
@@ -163,7 +187,7 @@ export function buildAttendanceExportCsv(data: DepartmentAttendanceExport): stri
     // --- Sign-off ---
     lines.push("");
     lines.push("");
-    lines.push(escapeCsvField(`Teacher: ${department.teacherName}`));
+    lines.push(escapeCsvField(`Teacher: ${letterhead.professorName.trim() || "................."}`));
     lines.push("");
     lines.push(escapeCsvField("Signature: ______________________"));
 

@@ -20,6 +20,16 @@ export default function Home() {
   return (
     <ProfileProvider>
       <main className="relative flex min-h-screen items-center justify-center bg-background px-6">
+        {/* Edit Courses entry point */}
+        <div className="absolute left-6 top-6 border-2 border-border rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground">
+          <Link
+            href="/courses"
+            className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+          >
+            Edit Courses
+          </Link>
+        </div>
+
         {/* Customize + Settings + History entry points */}
         <div className="absolute right-6 top-6 flex gap-1">
           <CustomizeButton />
@@ -86,31 +96,6 @@ export default function Home() {
                 </button>
               </Link>
             ))}
-
-            <Link href="/courses">
-              <button
-                className="
-                  w-full
-                  rounded-lg
-                  border
-                  border-dashed
-                  border-border
-                  px-6
-                  py-4
-                  text-center
-                  text-sm
-                  font-semibold
-                  text-muted-foreground
-                  transition-all
-                  duration-200
-                  hover:bg-accent
-                  hover:text-accent-foreground
-                  active:scale-[0.98]
-                "
-              >
-                + Add Courses
-              </button>
-            </Link>
           </div>
         </div>
       </main>
