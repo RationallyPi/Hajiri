@@ -12,8 +12,8 @@
 // "exceljs" package instead, which supports styling in its free tier too,
 // at the cost of a heavier dependency.
 import * as XLSX from "xlsx";
-import { buildAttendanceExportGrid, type ExportLetterhead } from "./csv";
-import type { DepartmentAttendanceExport } from "./queries";
+import { buildAttendanceExportGrid, studentRowsFromGrid, type ExportLetterhead } from "./csv";
+import type { BulkAddStudentRow, DepartmentAttendanceExport } from "./queries";
 
 export function buildAttendanceExportXlsx(
     data: DepartmentAttendanceExport,
@@ -45,4 +45,22 @@ export function buildAttendanceExportXlsx(
     return new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
+}
+
+// Reads the first sheet of an .xlsx file and pulls "roll no, name" rows out
+// of the first two columns — mirrors parseStudentsCsv/parseStudentsTsv in
+// ./csv, just starting from a binary workbook instead of delimited text.
+// Anything past column B is ignored, so a student roster exported from this
+// app itself (with all the extra attendance columns) can't accidentally be
+// re-imported as a bulk-add file — only a plain two-column roster works.
+export async function parseStudentsXlsx(file: File): Promise<BulkAddStudentRow[]> {
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) return [];
+
+    const grid: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+    const stringGrid = grid.map((row) => row.map((cell) => (cell == null ? "" : String(cell).trim())));
+
+    return studentRowsFromGrid(stringGrid);
 }

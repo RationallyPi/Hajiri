@@ -30,23 +30,25 @@ function splitCsvLine(line: string): string[] {
     return fields;
 }
 
-// Parses "roll no, name" CSV text into rows. Accepts an optional header row
-// (skipped automatically if the first cell of the first line isn't a number)
-// and skips any blank lines.
-export function parseStudentsCsv(text: string): BulkAddStudentRow[] {
-    const lines = text
-        .split(/\r\n|\r|\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0);
+// TSV has no standard quoting convention, so unlike CSV there's no need to
+// track quote state — a raw split on tabs is the normal way to read it.
+function splitTsvLine(line: string): string[] {
+    return line.split("\t").map((cell) => cell.trim());
+}
 
-    if (lines.length === 0) return [];
+// Shared by parseStudentsCsv/parseStudentsTsv and (indirectly) the XLSX
+// importer — turns a grid of already-split rows into BulkAddStudentRow[].
+// Accepts an optional header row (skipped automatically if the first cell of
+// the first row isn't a number) and skips any blank rows.
+export function studentRowsFromGrid(grid: string[][]): BulkAddStudentRow[] {
+    const nonEmpty = grid.filter((row) => row.some((cell) => cell.trim().length > 0));
+    if (nonEmpty.length === 0) return [];
 
-    const firstCells = splitCsvLine(lines[0]);
-    const startIdx = Number.isFinite(Number(firstCells[0])) ? 0 : 1; // skip header row
+    const startIdx = Number.isFinite(Number(nonEmpty[0][0])) ? 0 : 1; // skip header row
 
     const rows: BulkAddStudentRow[] = [];
-    for (let i = startIdx; i < lines.length; i++) {
-        const cells = splitCsvLine(lines[i]);
+    for (let i = startIdx; i < nonEmpty.length; i++) {
+        const cells = nonEmpty[i];
         const rollNumber = Number(cells[0]);
         const name = (cells[1] ?? "").trim();
         if (!Number.isFinite(rollNumber) || !name) continue;
@@ -54,6 +56,18 @@ export function parseStudentsCsv(text: string): BulkAddStudentRow[] {
     }
 
     return rows;
+}
+
+// Parses "roll no, name" CSV text into rows.
+export function parseStudentsCsv(text: string): BulkAddStudentRow[] {
+    const lines = text.split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
+    return studentRowsFromGrid(lines.map(splitCsvLine));
+}
+
+// Same as parseStudentsCsv, but tab-delimited.
+export function parseStudentsTsv(text: string): BulkAddStudentRow[] {
+    const lines = text.split(/\r\n|\r|\n/).filter((l) => l.trim().length > 0);
+    return studentRowsFromGrid(lines.map(splitTsvLine));
 }
 
 // One column per finished session, labeled by date only (no time — a class

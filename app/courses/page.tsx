@@ -18,8 +18,8 @@ import {
     updateDepartment,
     updateStudent,
 } from "../lib/queries";
-import { buildAttendanceExportCsv, buildAttendanceExportTsv, parseStudentsCsv } from "../lib/csv";
-import { buildAttendanceExportXlsx } from "../lib/xlsx";
+import { buildAttendanceExportCsv, buildAttendanceExportTsv, parseStudentsCsv, parseStudentsTsv } from "../lib/csv";
+import { buildAttendanceExportXlsx, parseStudentsXlsx } from "../lib/xlsx";
 
 export default function CoursesPage() {
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -36,6 +36,7 @@ export default function CoursesPage() {
         teacherName: "",
     };
     const [newDept, setNewDept] = useState<DepartmentInput>(emptyDeptForm);
+    const [addingCourse, setAddingCourse] = useState(false);
 
     // Edit and Duplicate both reuse the same 4-field panel — `deptFormMode`
     // says which action Save should perform, `deptForm` holds the field values.
@@ -102,6 +103,7 @@ export default function CoursesPage() {
                 teacherName: newDept.teacherName.trim(),
             });
             setNewDept(emptyDeptForm);
+            setAddingCourse(false);
             await refreshDepartments(id);
         } catch {
             alert("Couldn't add course. Please try again.");
@@ -109,6 +111,7 @@ export default function CoursesPage() {
     };
 
     const openEditDepartment = (d: Department) => {
+        setAddingCourse(false);
         setDeptFormMode({ type: "edit", departmentID: d.departmentID });
         setDeptForm({
             name: d.name,
@@ -121,6 +124,7 @@ export default function CoursesPage() {
     };
 
     const openDuplicateDepartment = (d: Department) => {
+        setAddingCourse(false);
         setDeptFormMode({ type: "duplicate", sourceDepartmentID: d.departmentID });
         setDeptForm({
             name: `${d.name} (copy)`,
@@ -175,11 +179,19 @@ export default function CoursesPage() {
 
         setImporting(true);
         try {
-            const text = await file.text();
-            const rows = parseStudentsCsv(text);
+            const isXlsx =
+                file.name.toLowerCase().endsWith(".xlsx") ||
+                file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            const isTsv = file.name.toLowerCase().endsWith(".tsv") || file.type === "text/tab-separated-values";
+
+            const rows = isXlsx
+                ? await parseStudentsXlsx(file)
+                : isTsv
+                    ? parseStudentsTsv(await file.text())
+                    : parseStudentsCsv(await file.text());
 
             if (rows.length === 0) {
-                alert("No valid rows found. Expected two columns per line: roll no, name.");
+                alert("No valid rows found. Expected two columns per row: roll no, name.");
                 return;
             }
 
@@ -382,70 +394,96 @@ export default function CoursesPage() {
                         ))}
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end">
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Subject</label>
-                            <input
-                                value={newDept.name}
-                                onChange={(e) => setNewDept((p) => ({ ...p, name: e.target.value }))}
-                                placeholder="e.g. Data Structures"
-                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Course Code</label>
-                            <input
-                                value={newDept.courseCode}
-                                onChange={(e) => setNewDept((p) => ({ ...p, courseCode: e.target.value }))}
-                                placeholder="CSC 205"
-                                className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Level (Year/Sem)</label>
-                            <input
-                                value={newDept.level}
-                                onChange={(e) => setNewDept((p) => ({ ...p, level: e.target.value }))}
-                                placeholder="3/2"
-                                className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Group</label>
-                            <input
-                                value={newDept.group}
-                                onChange={(e) => setNewDept((p) => ({ ...p, group: e.target.value }))}
-                                placeholder="A"
-                                className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Academic Year</label>
-                            <input
-                                value={newDept.academicYear}
-                                onChange={(e) => setNewDept((p) => ({ ...p, academicYear: e.target.value }))}
-                                placeholder="2082/083"
-                                className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Teacher</label>
-                            <input
-                                value={newDept.teacherName}
-                                onChange={(e) => setNewDept((p) => ({ ...p, teacherName: e.target.value }))}
-                                onKeyDown={(e) => e.key === "Enter" && handleAddDepartment()}
-                                placeholder="Teacher's name"
-                                className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
-                            />
-                        </div>
+                    {!addingCourse ? (
                         <button
                             type="button"
-                            onClick={handleAddDepartment}
-                            className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground"
+                            onClick={() => {
+                                setDeptFormMode(null);
+                                setAddingCourse(true);
+                            }}
+                            className="mt-3 rounded-lg border border-dashed border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
                         >
-                            Add course
+                            + Add Course
                         </button>
-                    </div>
+                    ) : (
+                        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Subject</label>
+                                <input
+                                    value={newDept.name}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, name: e.target.value }))}
+                                    placeholder="e.g. Data Structures"
+                                    autoFocus
+                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Course Code</label>
+                                <input
+                                    value={newDept.courseCode}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, courseCode: e.target.value }))}
+                                    placeholder="CSC 205"
+                                    className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Level (Year/Sem)</label>
+                                <input
+                                    value={newDept.level}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, level: e.target.value }))}
+                                    placeholder="3/2"
+                                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Group</label>
+                                <input
+                                    value={newDept.group}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, group: e.target.value }))}
+                                    placeholder="A"
+                                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Academic Year</label>
+                                <input
+                                    value={newDept.academicYear}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, academicYear: e.target.value }))}
+                                    placeholder="2082/083"
+                                    className="w-28 rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-muted-foreground">Teacher</label>
+                                <input
+                                    value={newDept.teacherName}
+                                    onChange={(e) => setNewDept((p) => ({ ...p, teacherName: e.target.value }))}
+                                    onKeyDown={(e) => e.key === "Enter" && handleAddDepartment()}
+                                    placeholder="Teacher's name"
+                                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleAddDepartment}
+                                    className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground"
+                                >
+                                    Save
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAddingCourse(false);
+                                        setNewDept(emptyDeptForm);
+                                    }}
+                                    className="rounded-lg border border-border bg-card px-4 py-1.5 text-sm font-semibold text-card-foreground"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Edit / Duplicate panel — shared by both actions, only one open at a time */}
                     {deptFormMode && (
@@ -531,6 +569,30 @@ export default function CoursesPage() {
                         <div className="mb-3 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-card-foreground">Students</h2>
                             <div className="flex flex-wrap items-center gap-2">
+                                <label className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent">
+                                    {importing ? "Importing…" : "Import Students"}
+                                    <input
+                                        ref={csvInputRef}
+                                        type="file"
+                                        accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                        className="hidden"
+                                        disabled={importing}
+                                        onChange={handleImportCsv}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleEmailExportCsv}
+                                    disabled={emailingExport || !profile?.email}
+                                    title={
+                                        profile?.email
+                                            ? `Email to ${profile.email}`
+                                            : "Add an email in your profile (Customize) to enable this"
+                                    }
+                                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50"
+                                >
+                                    {emailingExport ? "Sending…" : "Email Report"}
+                                </button>
                                 <select
                                     value={exportFormat}
                                     onChange={(e) => setExportFormat(e.target.value as "csv" | "tsv" | "xlsx")}
@@ -547,40 +609,17 @@ export default function CoursesPage() {
                                     disabled={exporting}
                                     className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50"
                                 >
-                                    {exporting ? "Exporting…" : "Download"}
+                                    {exporting ? "Exporting…" : "Download Report"}
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={handleEmailExportCsv}
-                                    disabled={emailingExport || !profile?.email}
-                                    title={
-                                        profile?.email
-                                            ? `Email to ${profile.email}`
-                                            : "Add an email in your profile (Customize) to enable this"
-                                    }
-                                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50"
-                                >
-                                    {emailingExport ? "Sending…" : "Email CSV"}
-                                </button>
-                                <label className="cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent">
-                                    {importing ? "Importing…" : "Import CSV"}
-                                    <input
-                                        ref={csvInputRef}
-                                        type="file"
-                                        accept=".csv,text/csv"
-                                        className="hidden"
-                                        disabled={importing}
-                                        onChange={handleImportCsv}
-                                    />
-                                </label>
                             </div>
                         </div>
                         <p className="-mt-2 mb-3 text-xs text-muted-foreground">
-                            Import: two columns per row, roll no, name (header row optional). Export: roll no, name,
-                            one column per finished session (P/A), total attendance, total classes, percentage.
-                            Pick CSV/TSV/XLSX before downloading — XLSX opens directly in Excel/Sheets/WPS on
-                            mobile. &quot;Email CSV&quot; always sends a .csv attachment regardless of the dropdown,
-                            to the email in your profile — manage your Resend key on the{" "}
+                            Import accepts .csv, .tsv, or .xlsx — two columns per row, roll no then name (header row
+                            optional). Export: roll no, name, one column per finished session (P/A), total
+                            attendance, total classes, percentage. Pick CSV/TSV/XLSX before downloading — XLSX opens
+                            directly in Excel/Sheets/WPS on mobile. &quot;Email Report&quot; always sends a .csv
+                            attachment regardless of the dropdown, to the email in your profile — manage your Resend
+                            key on the{" "}
                             <a href="/settings" className="underline">
                                 Settings
                             </a>{" "}
