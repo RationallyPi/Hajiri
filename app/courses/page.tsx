@@ -586,28 +586,6 @@ export default function CoursesPage() {
                     )}
                 </section>
 
-                {/* ---------------- Import Students ---------------- */}
-                {departmentID != null && (
-                    <section>
-                        <h2 className="mb-3 text-lg font-semibold text-card-foreground">Import Students</h2>
-                        <label className="inline-block w-full cursor-pointer rounded-lg border border-border bg-card px-4 py-2.5 text-center text-sm font-semibold text-card-foreground hover:bg-accent sm:w-auto">
-                            {importing ? "Importing…" : "Import Students"}
-                            <input
-                                ref={csvInputRef}
-                                type="file"
-                                accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                className="hidden"
-                                disabled={importing}
-                                onChange={handleImportCsv}
-                            />
-                        </label>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            Accepts .csv, .tsv, or .xlsx — two columns per row, roll no then name (header row
-                            optional).
-                        </p>
-                    </section>
-                )}
-
                 {/* ---------------- Attendance Report ---------------- */}
                 {departmentID != null && (
                     <section>
@@ -664,15 +642,28 @@ export default function CoursesPage() {
                     <section>
                         <div className="mb-3 flex items-center justify-between gap-2">
                             <h2 className="text-lg font-semibold text-card-foreground">
-                                Students {students.length > 0 && <span className="text-muted-foreground">({students.length})</span>}
+                                Students <span className="text-muted-foreground">({students.length})</span>
                             </h2>
-                            <button
-                                type="button"
-                                onClick={() => setStudentsExpanded((v) => !v)}
-                                className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent"
-                            >
-                                {studentsExpanded ? "Hide Students" : "View Students"}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <label className="inline-block cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-center text-sm font-semibold text-card-foreground hover:bg-accent">
+                                    {importing ? "Importing…" : "Import Students"}
+                                    <input
+                                        ref={csvInputRef}
+                                        type="file"
+                                        accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                        className="hidden"
+                                        disabled={importing}
+                                        onChange={handleImportCsv}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setStudentsExpanded((v) => !v)}
+                                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-card-foreground hover:bg-accent"
+                                >
+                                    {studentsExpanded ? "Hide" : "View"}
+                                </button>
+                            </div>
                         </div>
 
                         {studentsExpanded && (

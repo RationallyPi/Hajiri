@@ -9,6 +9,7 @@ import { ProfileProvider, ProfileDisplay, CustomizeButton } from "./components/p
 export default function Home() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     getDepartments().then((deps) => {
@@ -16,6 +17,16 @@ export default function Home() {
       setLoading(false);
     });
   }, []);
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access denied or unavailable — fail silently.
+    }
+  };
 
   return (
     <ProfileProvider>
@@ -30,18 +41,48 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Customize + Settings + History entry points */}
-        <div className="absolute right-6 top-6 flex gap-1">
+        {/* Share + Customize + Settings + History entry points */}
+        <div className="absolute right-6 top-6 flex items-center gap-1">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              aria-label="Copy link to this page"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            </button>
+            {copied && (
+              <span className="absolute right-0 top-full mt-1 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-primary shadow-sm">
+                Copied to clipboard
+              </span>
+            )}
+          </div>
           <Link
             href="/sessions"
-            className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-md text-xl text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
             aria-label="Session history"
           >
             🕘
           </Link>
           <Link
             href="/settings"
-            className="rounded-md p-2 text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-md text-xl text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
             aria-label="Settings"
           >
             ⚙
