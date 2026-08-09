@@ -133,7 +133,13 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
     if (loading) {
         return (
             <main className="flex h-screen flex-col overflow-hidden bg-background">
-                <Navbar title={title} date={dateLabel} onFinish={handleFinish} backHref={backHref} />
+                <Navbar
+                    title={title}
+                    date={dateLabel}
+                    onFinish={handleFinish}
+                    backHref={backHref}
+                    section={department?.group}
+                />
                 <p className="flex flex-1 items-center justify-center text-muted-foreground">Loading…</p>
             </main>
         );
@@ -142,7 +148,13 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
     if (!active) {
         return (
             <main className="flex h-screen flex-col overflow-hidden bg-background">
-                <Navbar title={title} date={dateLabel} onFinish={handleFinish} backHref={backHref} />
+                <Navbar
+                    title={title}
+                    date={dateLabel}
+                    onFinish={handleFinish}
+                    backHref={backHref}
+                    section={department?.group}
+                />
                 <p className="flex flex-1 items-center justify-center text-muted-foreground">
                     No students in this course.
                 </p>
@@ -152,7 +164,13 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
 
     return (
         <main className="flex h-screen flex-col overflow-hidden bg-background">
-            <Navbar title={title} date={dateLabel} onFinish={handleFinish} backHref={backHref} />
+            <Navbar
+                title={title}
+                date={dateLabel}
+                onFinish={handleFinish}
+                backHref={backHref}
+                section={department?.group}
+            />
 
             <div className="shrink-0 px-4 pt-4">
                 <RollNumberPicker

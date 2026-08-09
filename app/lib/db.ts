@@ -50,6 +50,7 @@ export interface Profile {
     department: string; // the professor's own department/faculty — distinct from the per-course `Department` entity above
     resendApiKey: string; // pasted in via Settings > Email — lets "Email CSV" work without a server .env file
     resendFromEmail: string; // optional sender override, e.g. "Hajiri <you@yourdomain.com>"; blank = use the server default
+    signature: Blob | null; // uploaded signature image — when set, reports use it instead of a blank "Signature: ______" line
 }
 
 // Derived UI-facing status — not stored directly. "unmarked" means no Attendance row exists yet.
@@ -233,6 +234,27 @@ class AttendanceDB extends Dexie {
                     .toCollection()
                     .modify((s) => {
                         s.finishedAt = s.finished ? s.date : null;
+                    }),
+            );
+
+        // Adds `signature` to the profile row — an uploaded image of the
+        // professor's signature. When present, exports use it in place of
+        // the blank "Signature: ______" line. Unindexed field, so only a
+        // backfill is needed, same pattern as v6/v7.
+        this.version(10)
+            .stores({
+                departments: "++departmentID, name",
+                students: "++studentID, departmentID, &[departmentID+rollNumber]",
+                sessions: "++sessionID, departmentID, date",
+                attendance: "[sessionID+studentID], sessionID, studentID",
+                profile: "profileID",
+            })
+            .upgrade((tx) =>
+                tx
+                    .table("profile")
+                    .toCollection()
+                    .modify((p) => {
+                        p.signature = p.signature ?? null;
                     }),
             );
     }

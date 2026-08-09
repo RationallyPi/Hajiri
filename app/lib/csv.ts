@@ -95,7 +95,16 @@ function buildSessionDateLabels(sessions: Session[]): string[] {
     return sessions.map((s) => dateTimeLabel(sessionReportTime(s)));
 }
 
-export type ExportLetterhead = { institution: string; department: string; professorName: string };
+export type ExportLetterhead = {
+    institution: string;
+    department: string;
+    professorName: string;
+    // Uploaded signature image (Settings > Profile & Email). When present,
+    // the blank "Signature: ______" placeholder line is dropped from the
+    // text-only CSV/TSV grid — the label alone is kept so the XLSX exporter
+    // (xlsx.ts) has a known row to anchor the actual image against.
+    signature?: Blob | null;
+};
 
 // A CSV/TSV has no real "bold" or "centered" styling, but when opened in
 // Excel/Sheets each row lines up under the same columns as the table below
@@ -204,7 +213,10 @@ export function buildAttendanceExportGrid(
     rows.push([]);
     rows.push([`Teacher: ${letterhead.professorName.trim() || "................."}`]);
     rows.push([]);
-    rows.push(["Signature: ______________________"]);
+    // With a signature image on file, drop the blank underscore line — the
+    // label alone stays as a placeholder row for xlsx.ts to draw the actual
+    // image over. Without one, keep the hand-signable blank as before.
+    rows.push(letterhead.signature ? ["Signature:"] : ["Signature: ______________________"]);
 
     return rows;
 }

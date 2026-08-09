@@ -109,31 +109,36 @@ export default function Home() {
 
             {departments.map((d) => (
               <Link key={d.departmentID} href={`/session/${d.departmentID}`}>
-                <button
+                <div
                   className="
+                    group
+                    flex
                     w-full
+                    overflow-hidden
                     rounded-lg
                     border
                     border-border
-                    bg-card
-                    px-6
-                    py-4
-                    text-left
-                    text-lg
-                    font-medium
-                    text-card-foreground
                     shadow-sm
                     transition-all
                     duration-200
-                    hover:bg-accent
-                    hover:text-accent-foreground
                     hover:shadow-md
                     active:scale-[0.98]
                   "
                 >
-                  {d.name}
-                  {d.group ? ` - ${d.group}` : ""}
-                </button>
+                  {/* Section / Group strip */}
+                  <div className="flex w-20 shrink-0 items-center justify-center bg-primary/20 px-2 py-4 text-center">
+                    <span className="text-sm font-semibold leading-tight text-primary">
+                      {d.group || "—"}
+                    </span>
+                  </div>
+
+                  {/* Class name */}
+                  <div className="flex flex-1 items-center bg-card px-6 py-4 transition group-hover:bg-accent">
+                    <span className=" text-lg font-semibold text-card-foreground transition group-hover:text-accent-foreground">
+                      {d.name}
+                    </span>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>

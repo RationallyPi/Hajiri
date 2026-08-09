@@ -3,45 +3,70 @@
 // spreadsheet. This is what opens directly in Excel/Google Sheets/WPS on a
 // phone without needing a "what app opens .csv?" dialog.
 //
-// Requires the "xlsx" (SheetJS) package: npm install xlsx
+// Writing uses "exceljs" rather than "xlsx" (SheetJS) — the free/community
+// build of SheetJS supports merged cells but can't embed images at all
+// (that's a Pro-only feature there), and embedding the professor's uploaded
+// signature is the whole point of this export. exceljs supports floating
+// images in its free tier, at the cost of a heavier dependency.
+// Requires: npm install exceljs
 //
-// Note: the free/community build of SheetJS supports merged cells (used
-// below so the letterhead lines span the full table width) but not per-cell
-// styling like bold text or true center-alignment — that's a Pro-only
-// feature. If you want fully styled cells later, swap this out for the
-// "exceljs" package instead, which supports styling in its free tier too,
-// at the cost of a heavier dependency.
+// Reading (parseStudentsXlsx, for bulk-importing a student roster) still
+// uses "xlsx" below — that direction never needed image support, so there's
+// no reason to touch it.
+import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
 import { buildAttendanceExportGrid, studentRowsFromGrid, type ExportLetterhead } from "./csv";
 import type { BulkAddStudentRow, DepartmentAttendanceExport } from "./queries";
 
-export function buildAttendanceExportXlsx(
+export async function buildAttendanceExportXlsx(
     data: DepartmentAttendanceExport,
     letterhead: ExportLetterhead,
-): Blob {
+): Promise<Blob> {
     const grid = buildAttendanceExportGrid(data, letterhead);
     const totalCols = grid.reduce((max, row) => Math.max(max, row.length), 1);
 
-    const ws = XLSX.utils.aoa_to_sheet(grid);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Attendance");
+    ws.columns = new Array(totalCols).fill(null).map(() => ({ width: 14 }));
+
+    grid.forEach((row) => {
+        const padded = [...row];
+        while (padded.length < totalCols) padded.push("");
+        ws.addRow(padded);
+    });
 
     // Any row with exactly one non-empty cell (letterhead lines, class
     // detail lines, the sign-off lines) gets merged across the full table
     // width — everything else (blank rows, the header, student rows) is
     // left as individual cells.
-    const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [];
     grid.forEach((row, rowIndex) => {
         const filledCount = row.filter((cell) => cell !== "" && cell !== undefined).length;
         if (filledCount === 1) {
-            merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex, c: totalCols - 1 } });
+            ws.mergeCells(rowIndex + 1, 1, rowIndex + 1, totalCols);
         }
     });
-    ws["!merges"] = merges;
-    ws["!cols"] = new Array(totalCols).fill({ wch: 14 });
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+    // Embed the signature image, if the professor has uploaded one, floating
+    // over the "Signature:" row that buildAttendanceExportGrid reserves for
+    // it whenever letterhead.signature is set. Anchored as a floating image
+    // rather than a cell value, since a cell can't hold binary image data.
+    if (letterhead.signature) {
+        const signatureRowIndex = grid.findIndex((row) => row[0] === "Signature:");
+        if (signatureRowIndex !== -1) {
+            const buffer = await letterhead.signature.arrayBuffer();
+            const extension = letterhead.signature.type.includes("png") ? "png" : "jpeg";
+            const imageId = wb.addImage({ buffer: buffer as unknown as ExcelJS.Buffer, extension });
+            // Give the image's row some height so it doesn't get squashed by
+            // the default row height, and place it just right of the label.
+            ws.getRow(signatureRowIndex + 1).height = 50;
+            ws.addImage(imageId, {
+                tl: { col: 1, row: signatureRowIndex },
+                ext: { width: 160, height: 60 },
+            });
+        }
+    }
 
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+    const buffer = await wb.xlsx.writeBuffer();
     return new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });

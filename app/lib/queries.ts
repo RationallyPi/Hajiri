@@ -14,6 +14,7 @@ const emptyProfile = (): Profile => ({
     department: "",
     resendApiKey: "",
     resendFromEmail: "",
+    signature: null,
 });
 
 // Always resolves to a row — creates a blank default on first call so the
@@ -30,7 +31,14 @@ export const updateProfile = (
     changes: Partial<
         Pick<
             Profile,
-            "professorName" | "photo" | "email" | "institution" | "department" | "resendApiKey" | "resendFromEmail"
+            | "professorName"
+            | "photo"
+            | "email"
+            | "institution"
+            | "department"
+            | "resendApiKey"
+            | "resendFromEmail"
+            | "signature"
         >
     >,
 ) =>

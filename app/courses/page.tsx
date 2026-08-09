@@ -264,7 +264,7 @@ export default function CoursesPage() {
             let blob: Blob;
             let filename: string;
             if (exportFormat === "xlsx") {
-                blob = buildAttendanceExportXlsx(data, letterhead);
+                blob = await buildAttendanceExportXlsx(data, letterhead);
                 filename = `${safeName}_attendance.xlsx`;
             } else if (exportFormat === "tsv") {
                 blob = new Blob([buildAttendanceExportTsv(data, letterhead)], {
@@ -384,7 +384,9 @@ export default function CoursesPage() {
                                     onClick={() => setDepartmentID(d.departmentID)}
                                     className="px-1 py-1"
                                 >
-                                    {d.name}
+                                    <span className="text-sm font-semibold leading-tight text-primary">
+                                        {d.group}
+                                    </span>   {d.name}
                                     {yearSemesterLabel(d) && <span className="ml-1 opacity-70">({yearSemesterLabel(d)})</span>}
                                 </button>
                                 <button

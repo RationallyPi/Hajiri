@@ -20,6 +20,15 @@ export default function SettingsPage() {
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Signature image — same draft/preview pattern as the profile photo
+    // above. When set, it's used on attendance report exports (CSV/TSV show
+    // just the "Signature:" label; XLSX embeds the image itself) instead of
+    // a blank "Signature: ______" line for the professor to sign by hand.
+    const [signatureDraft, setSignatureDraft] = useState<Blob | null>(null);
+    const [signatureDraftUrl, setSignatureDraftUrl] = useState<string | null>(null);
+    const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+    const signatureInputRef = useRef<HTMLInputElement>(null);
+
     const [saving, setSaving] = useState(false);
 
     // One fetch populates every draft on this page — profile info and
@@ -61,9 +70,34 @@ export default function SettingsPage() {
         return () => URL.revokeObjectURL(url);
     }, [photoDraft]);
 
+    useEffect(() => {
+        if (!profile?.signature) {
+            setSignatureUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(profile.signature);
+        setSignatureUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [profile?.signature]);
+
+    useEffect(() => {
+        if (!signatureDraft) {
+            setSignatureDraftUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(signatureDraft);
+        setSignatureDraftUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [signatureDraft]);
+
     const handlePhotoPick = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) setPhotoDraft(file);
+    };
+
+    const handleSignaturePick = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) setSignatureDraft(file);
     };
 
     const handleSave = async () => {
@@ -77,9 +111,12 @@ export default function SettingsPage() {
                 resendApiKey: resendKeyDraft.trim(),
                 resendFromEmail: resendFromDraft.trim(),
                 ...(photoDraft ? { photo: photoDraft } : {}),
+                ...(signatureDraft ? { signature: signatureDraft } : {}),
             });
             setPhotoDraft(null);
+            setSignatureDraft(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
+            if (signatureInputRef.current) signatureInputRef.current.value = "";
             await refresh();
         } finally {
             setSaving(false);
@@ -87,6 +124,7 @@ export default function SettingsPage() {
     };
 
     const displayPhotoUrl = photoDraftUrl ?? photoUrl;
+    const displaySignatureUrl = signatureDraftUrl ?? signatureUrl;
 
     return (
         <main className="flex min-h-screen flex-col bg-background">
@@ -170,6 +208,35 @@ export default function SettingsPage() {
                                 placeholder="e.g. Forest Science"
                                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
+                        </div>
+
+                        <div className="flex flex-col gap-1 sm:col-span-2">
+                            <label className="text-xs text-muted-foreground">Signature</label>
+                            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-background px-3 py-2">
+                                <div className="flex h-12 w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                                    {displaySignatureUrl ? (
+                                        <img
+                                            src={displaySignatureUrl}
+                                            alt=""
+                                            className="h-full w-full object-contain"
+                                        />
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">None</span>
+                                    )}
+                                </div>
+                                <span className="text-sm text-muted-foreground">Tap to upload a signature image</span>
+                                <input
+                                    ref={signatureInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleSignaturePick}
+                                />
+                            </label>
+                            <p className="text-xs text-muted-foreground">
+                                When set, this image replaces the blank &quot;Signature: ______&quot; line on
+                                attendance report exports.
+                            </p>
                         </div>
 
                         <div className="flex flex-col gap-1 sm:col-span-2">
