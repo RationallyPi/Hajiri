@@ -98,13 +98,23 @@ export default function Home() {
             {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
             {!loading && departments.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No courses yet —{" "}
-                <Link href="/courses" className="underline">
-                  add one
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-10 text-center">
+                <span className="text-3xl" aria-hidden="true">
+                  📚
+                </span>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium text-card-foreground">No courses yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Add a course to start taking attendance.
+                  </p>
+                </div>
+                <Link
+                  href="/courses"
+                  className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                >
+                  Add your first course
                 </Link>
-                .
-              </p>
+              </div>
             )}
 
             {departments.map((d) => (
