@@ -4,10 +4,8 @@
 // phone without needing a "what app opens .csv?" dialog.
 //
 // Writing uses "exceljs" rather than "xlsx" (SheetJS) — the free/community
-// build of SheetJS supports merged cells but can't embed images at all
-// (that's a Pro-only feature there), and embedding the professor's uploaded
-// signature is the whole point of this export. exceljs supports floating
-// images in its free tier, at the cost of a heavier dependency.
+// build of SheetJS supports merged cells, which this export relies on for
+// the letterhead/class-detail rows.
 // Requires: npm install exceljs
 //
 // Reading (parseStudentsXlsx, for bulk-importing a student roster) still
@@ -45,26 +43,6 @@ export async function buildAttendanceExportXlsx(
             ws.mergeCells(rowIndex + 1, 1, rowIndex + 1, totalCols);
         }
     });
-
-    // Embed the signature image, if the professor has uploaded one, floating
-    // over the "Signature:" row that buildAttendanceExportGrid reserves for
-    // it whenever letterhead.signature is set. Anchored as a floating image
-    // rather than a cell value, since a cell can't hold binary image data.
-    if (letterhead.signature) {
-        const signatureRowIndex = grid.findIndex((row) => row[0] === "Signature:");
-        if (signatureRowIndex !== -1) {
-            const buffer = await letterhead.signature.arrayBuffer();
-            const extension = letterhead.signature.type.includes("png") ? "png" : "jpeg";
-            const imageId = wb.addImage({ buffer: buffer as unknown as ExcelJS.Buffer, extension });
-            // Give the image's row some height so it doesn't get squashed by
-            // the default row height, and place it just right of the label.
-            ws.getRow(signatureRowIndex + 1).height = 50;
-            ws.addImage(imageId, {
-                tl: { col: 1, row: signatureRowIndex },
-                ext: { width: 160, height: 60 },
-            });
-        }
-    }
 
     const buffer = await wb.xlsx.writeBuffer();
     return new Blob([buffer], {
