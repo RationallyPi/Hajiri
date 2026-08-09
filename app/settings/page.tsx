@@ -191,7 +191,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Institution</label>
+                            <label className="text-xs text-muted-foreground">University/Organization</label>
                             <input
                                 value={institutionDraft}
                                 onChange={(e) => setInstitutionDraft(e.target.value)}
@@ -201,7 +201,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                            <label className="text-xs text-muted-foreground">Department</label>
+                            <label className="text-xs text-muted-foreground">Institution/Department</label>
                             <input
                                 value={departmentDraft}
                                 onChange={(e) => setDepartmentDraft(e.target.value)}

@@ -432,11 +432,11 @@ export default function CoursesPage() {
                     ) : (
                         <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-3 sm:flex sm:flex-row sm:flex-wrap sm:items-end">
                             <div className="col-span-2 flex flex-col gap-1 sm:col-auto">
-                                <label className="text-xs text-muted-foreground">Subject</label>
+                                <label className="text-xs text-muted-foreground">Course Name</label>
                                 <input
                                     value={newDept.name}
                                     onChange={(e) => setNewDept((p) => ({ ...p, name: e.target.value }))}
-                                    placeholder="e.g. Data Structures"
+                                    placeholder="e.g. Project Management"
                                     autoFocus
                                     className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                                 />
@@ -464,7 +464,7 @@ export default function CoursesPage() {
                                 <input
                                     value={newDept.semester}
                                     onChange={(e) => setNewDept((p) => ({ ...p, semester: e.target.value }))}
-                                    placeholder="2"
+                                    placeholder="I/II"
                                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm sm:w-20"
                                 />
                             </div>

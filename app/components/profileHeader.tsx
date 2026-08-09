@@ -85,7 +85,7 @@ export function ProfileDisplay() {
                     </div>
                 )}
             </div>
-            <p className="text-sm font-medium text-card-foreground">{profile?.professorName || "Add your name"}</p>
+            <p className="text-sm font-medium text-card-foreground">{profile?.professorName || "Set your profile through Settings"}</p>
         </div>
     );
 }
