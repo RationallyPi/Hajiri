@@ -171,16 +171,14 @@ export const deleteStudent = (studentID: number) =>
 
 /* -------------------------------- Sessions -------------------------------- */
 
-const startOfDay = (d: Date) => {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x;
-};
-
-// Resumes today's session for this course only if it's still unfinished — once
-// Finish is hit, the next visit always starts a brand new session. That's what
-// lets you run two separate periods of the same course on the same day without
-// the second one silently overwriting the first.
+// Resumes the department's unfinished session if one exists — no matter how
+// long ago it was started. This is what guarantees at most one "in progress"
+// session per course at any time: if you started Attendance A, backed out,
+// then started and finished Attendance B, A is still sitting there
+// unfinished; coming back to A two days (or two weeks) later reuses that
+// same session and its original `date`, instead of silently spawning a
+// second in-progress session for the same course. Only when there's truly no
+// unfinished session left does this create a new one.
 export const getOrCreateActiveSession = (departmentID: number): Promise<Session> =>
     // Atomic: without a transaction, two near-simultaneous calls (e.g. React
     // Strict Mode double-invoking the effect that calls this) can both run the
@@ -190,14 +188,10 @@ export const getOrCreateActiveSession = (departmentID: number): Promise<Session>
     // makes Dexie serialize concurrent calls, so the second call sees the
     // first's insert and reuses it instead of creating a duplicate.
     db.transaction("rw", db.sessions, async () => {
-        const today = startOfDay(new Date());
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
         const existing = await db.sessions
             .where("departmentID")
             .equals(departmentID)
-            .and((s) => s.date >= today && s.date < tomorrow && !s.finished)
+            .and((s) => !s.finished)
             .first();
 
         if (existing) return existing;
@@ -206,6 +200,7 @@ export const getOrCreateActiveSession = (departmentID: number): Promise<Session>
             departmentID,
             date: new Date(),
             finished: false,
+            finishedAt: null,
             remarks: "",
         } as Session);
 
@@ -217,7 +212,12 @@ export const updateSessionRemarks = (sessionID: number, remarks: string) =>
 
 export const getSession = (sessionID: number): Promise<Session | undefined> => db.sessions.get(sessionID);
 
-export const finishSession = (sessionID: number) => db.sessions.update(sessionID, { finished: true });
+// Stamps `finishedAt` every time Finish is pressed — including re-finishing
+// a session that was started days ago and picked back up later via Edit, so
+// the recorded time always reflects the *last* time it was finished, not
+// when it was first created.
+export const finishSession = (sessionID: number) =>
+    db.sessions.update(sessionID, { finished: true, finishedAt: new Date() });
 
 // Removes the session and every attendance row tied to it — use for botched
 // test sessions. Doesn't touch students or the course itself.
@@ -236,7 +236,6 @@ export const getSessionsByDepartment = async (departmentID: number): Promise<Ses
     const sessions = await db.sessions.where("departmentID").equals(departmentID).toArray();
     return sessions.sort((a, b) => b.date.getTime() - a.date.getTime());
 };
-
 /* ------------------------------- Attendance ------------------------------- */
 
 export const getAttendanceForSession = async (sessionID: number): Promise<Map<number, boolean>> => {

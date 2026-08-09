@@ -70,26 +70,29 @@ export function parseStudentsTsv(text: string): BulkAddStudentRow[] {
     return studentRowsFromGrid(lines.map(splitTsvLine));
 }
 
-// One column per finished session, labeled by date only (no time — a class
-// only ever runs once a day in practice, but on the rare day two periods of
-// the same course both got finished, we disambiguate with "(1)" / "(2)"
-// rather than silently colliding into one column).
+// A finished session's "report time" is when it was actually finished, not
+// when it was started — a session begun one day and only wrapped up later
+// should be dated (and timed) by its completion, matching what the summary
+// page and history list already show. finishedAt falls back to date only as
+// a defensive guard (every session in this export is pre-filtered to
+// `finished === true`, so finishedAt should always be set from v9 onward).
+function sessionReportTime(session: Session): Date {
+    return session.finishedAt ?? session.date;
+}
+
+// One column per finished session, labeled by date *and time* (e.g.
+// "12 Aug 2026, 3:45 pm") — a class only ever runs once a day in practice,
+// but on the rare day two periods of the same course both got finished, the
+// time itself already disambiguates them, so no more "(1)"/"(2)" suffixing
+// is needed.
 function buildSessionDateLabels(sessions: Session[]): string[] {
-    const dateOnly = (d: Date) =>
-        d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const dateTimeLabel = (d: Date) =>
+        `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, ${d.toLocaleTimeString(
+            "en-GB",
+            { hour: "2-digit", minute: "2-digit" },
+        )}`;
 
-    const dateStrs = sessions.map((s) => dateOnly(s.date));
-    const totalPerDate = new Map<string, number>();
-    dateStrs.forEach((ds) => totalPerDate.set(ds, (totalPerDate.get(ds) ?? 0) + 1));
-
-    const seenPerDate = new Map<string, number>();
-    return dateStrs.map((ds) => {
-        const total = totalPerDate.get(ds)!;
-        if (total <= 1) return ds;
-        const seen = (seenPerDate.get(ds) ?? 0) + 1;
-        seenPerDate.set(ds, seen);
-        return `${ds} (${seen})`;
-    });
+    return sessions.map((s) => dateTimeLabel(sessionReportTime(s)));
 }
 
 export type ExportLetterhead = { institution: string; department: string; professorName: string };

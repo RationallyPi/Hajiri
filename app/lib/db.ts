@@ -21,8 +21,9 @@ export interface Student {
 export interface Session {
     sessionID: number;
     departmentID: number;
-    date: Date;
+    date: Date; // when the session was started/created
     finished: boolean;
+    finishedAt: Date | null; // when Finish was last pressed — null while still in progress
     remarks: string; // what was taught that session — optional in practice, defaults to ""
 }
 
@@ -207,6 +208,31 @@ class AttendanceDB extends Dexie {
                         d.semester = (semester ?? "").trim();
                         delete d.level;
                         delete d.teacherName;
+                    }),
+            );
+
+        // Adds finishedAt so the history list can show *when a session was
+        // actually finished* rather than just when it was started — a
+        // session can sit "in progress" for days before someone comes back
+        // and finishes it, and the started date was misleading for that
+        // case. Backfill: already-finished sessions get their `date` as a
+        // best-guess finish time (the real moment wasn't recorded before
+        // this version); still in-progress sessions get null, same as any
+        // new session going forward.
+        this.version(9)
+            .stores({
+                departments: "++departmentID, name",
+                students: "++studentID, departmentID, &[departmentID+rollNumber]",
+                sessions: "++sessionID, departmentID, date",
+                attendance: "[sessionID+studentID], sessionID, studentID",
+                profile: "profileID",
+            })
+            .upgrade((tx) =>
+                tx
+                    .table("sessions")
+                    .toCollection()
+                    .modify((s) => {
+                        s.finishedAt = s.finished ? s.date : null;
                     }),
             );
     }

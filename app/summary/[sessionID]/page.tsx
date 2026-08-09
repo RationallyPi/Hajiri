@@ -45,15 +45,22 @@ export default function SessionSummaryPage({ params }: { params: Promise<{ sessi
 
     const { session, department, entries, presentCount, absentCount, unmarkedCount } = summary;
     const absentees = entries.filter((e) => e.status === "absent");
-    const dateLabel = session.date.toLocaleDateString("en-GB", {
+
+    // Prefer the actual finish time — this is what makes a session started a
+    // week ago but only finished today correctly show today's date/time here,
+    // instead of the stale start date. Falls back to the start date for
+    // sessions that are somehow shown here unfinished.
+    const displayDate = session.finishedAt ?? session.date;
+    const dateLabel = displayDate.toLocaleDateString("en-GB", {
         day: "numeric",
         month: "long",
         year: "numeric",
     });
+    const timeLabel = displayDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
     return (
         <main className="flex min-h-screen flex-col bg-background">
-            <Navbar title={department.name} date={dateLabel} />
+            <Navbar title={department.name} date={`${dateLabel} · ${timeLabel}`} />
 
             <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 p-6">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/15 text-4xl text-emerald-600">
@@ -64,6 +71,11 @@ export default function SessionSummaryPage({ params }: { params: Promise<{ sessi
                     <p className="mt-1 text-muted-foreground">
                         {department.name} · {entries.length} students
                     </p>
+                    {!session.finished && (
+                        <span className="mt-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                            in progress
+                        </span>
+                    )}
                 </div>
 
                 <div className="grid w-full grid-cols-3 gap-3">
