@@ -146,6 +146,8 @@ export default function SessionMarkingView({ sessionID, backHref = "/" }: Sessio
             ),
         );
         setUndoDepth(undoStack.current.length);
+        const undoneIdx = roster.findIndex((r) => r.student.studentID === last.studentID);
+        if (undoneIdx !== -1) setActiveIndex(undoneIdx);
     };
 
     const handleFinish = async () => {
