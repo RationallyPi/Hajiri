@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { Department } from "./lib/db";
 import { getDepartments } from "./lib/queries";
 import { ProfileProvider, ProfileDisplay, CustomizeButton } from "./components/profileHeader";
+import ThemeToggle from "./components/themeToggle";
 
 export default function Home() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -73,6 +74,7 @@ export default function Home() {
               </span>
             )}
           </div>
+          <ThemeToggle className="flex h-9 w-9 items-center justify-center rounded-md text-xl text-muted-foreground transition hover:bg-accent hover:text-accent-foreground" />
           <Link
             href="/sessions"
             className="flex h-9 w-9 items-center justify-center rounded-md text-xl text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"

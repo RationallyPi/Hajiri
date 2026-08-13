@@ -253,6 +253,11 @@ export const getAttendanceForSession = async (sessionID: number): Promise<Map<nu
 export const markAttendance = (sessionID: number, studentID: number, status: boolean) =>
     db.attendance.put({ sessionID, studentID, status });
 
+// Removes a student's mark for this session, returning them to "unmarked" —
+// used by the Undo control to revert a mistaken mark.
+export const unmarkAttendance = (sessionID: number, studentID: number) =>
+    db.attendance.delete([sessionID, studentID]);
+
 // Sparse model: unmarked sessions leave no row, so this is present-count / marked-count,
 // not present-count / total-sessions. Returns null when there's no data yet.
 export const getAttendancePercentage = async (studentID: number): Promise<number | null> => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Navbar from "../components/navbar";
+import ThemeToggle from "../components/themeToggle";
 import type { Profile } from "../lib/db";
 import { getProfile, updateProfile } from "../lib/queries";
 
@@ -214,6 +215,19 @@ export default function SettingsPage() {
                     >
                         {saving ? "Saving…" : "Save"}
                     </button>
+                </section>
+
+                {/* ---------------- Appearance ---------------- */}
+                <section className="mt-4 rounded-2xl border border-border bg-card p-4 sm:p-6">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-lg font-semibold text-card-foreground">Appearance</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Switch between light and dark theme. Your choice is remembered on this device.
+                            </p>
+                        </div>
+                        <ThemeToggle className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-2xl text-card-foreground transition hover:bg-accent" />
+                    </div>
                 </section>
             </div>
         </main>

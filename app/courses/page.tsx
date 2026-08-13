@@ -19,13 +19,13 @@ import {
     updateStudent,
 } from "../lib/queries";
 import { buildAttendanceExportCsv, buildAttendanceExportTsv, parseStudentsCsv, parseStudentsTsv } from "../lib/csv";
-import { buildAttendanceExportXlsx, parseStudentsXlsx } from "../lib/xlsx";
 
 export default function CoursesPage() {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [departmentID, setDepartmentID] = useState<number | null>(null);
     const [students, setStudents] = useState<Student[]>([]);
     const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
+    const [studentQuery, setStudentQuery] = useState("");
 
     // The roster table for the selected course starts collapsed — "View
     // Students" expands it in place, "Hide Students" collapses it again.
@@ -64,6 +64,11 @@ export default function CoursesPage() {
     // Report" is enabled, what to send it with, and (via currentLetterhead)
     // whose name goes on the report as the teacher.
     const [profile, setProfile] = useState<Profile | null>(null);
+    // Tracks whether the device is connected so "Email Report" (which needs the
+    // server + internet) can be disabled while offline. Downloads never care.
+    const [online, setOnline] = useState(() =>
+        typeof navigator !== "undefined" ? navigator.onLine : true,
+    );
 
     const refreshDepartments = async (selectID?: number) => {
         const deps = await getDepartments();
@@ -80,6 +85,17 @@ export default function CoursesPage() {
         refreshDepartments();
         getProfile().then(setProfile);
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        const onOnline = () => setOnline(true);
+        const onOffline = () => setOnline(false);
+        window.addEventListener("online", onOnline);
+        window.addEventListener("offline", onOffline);
+        return () => {
+            window.removeEventListener("online", onOnline);
+            window.removeEventListener("offline", onOffline);
+        };
     }, []);
 
     useEffect(() => {
@@ -194,7 +210,7 @@ export default function CoursesPage() {
             const isTsv = file.name.toLowerCase().endsWith(".tsv") || file.type === "text/tab-separated-values";
 
             const rows = isXlsx
-                ? await parseStudentsXlsx(file)
+                ? await (await import("../lib/xlsx")).parseStudentsXlsx(file)
                 : isTsv
                     ? parseStudentsTsv(await file.text())
                     : parseStudentsCsv(await file.text());
@@ -264,6 +280,7 @@ export default function CoursesPage() {
             let blob: Blob;
             let filename: string;
             if (exportFormat === "xlsx") {
+                const { buildAttendanceExportXlsx } = await import("../lib/xlsx");
                 blob = await buildAttendanceExportXlsx(data, letterhead);
                 filename = `${safeName}_attendance.xlsx`;
             } else if (exportFormat === "tsv") {
@@ -289,6 +306,10 @@ export default function CoursesPage() {
 
     const handleEmailExportCsv = async () => {
         if (!profile?.email) return;
+        if (!navigator.onLine) {
+            alert("You're offline — emailing a report needs an internet connection.");
+            return;
+        }
 
         setEmailingExport(true);
         try {
@@ -360,6 +381,14 @@ export default function CoursesPage() {
     };
 
     const yearSemesterLabel = (d: Department) => [d.year, d.semester].filter(Boolean).join("/");
+
+    const query = studentQuery.trim().toLowerCase();
+    const filteredStudents = query
+        ? students.filter(
+              (s) =>
+                  s.name.toLowerCase().includes(query) || String(s.rollNumber).includes(query),
+          )
+        : students;
 
     return (
         <main className="flex min-h-screen flex-col bg-background">
@@ -596,11 +625,13 @@ export default function CoursesPage() {
                             <button
                                 type="button"
                                 onClick={handleEmailExportCsv}
-                                disabled={emailingExport || !profile?.email}
+                                disabled={emailingExport || !profile?.email || !online}
                                 title={
-                                    profile?.email
-                                        ? `Email to ${profile.email}`
-                                        : "Add an email in your profile (Customize) to enable this"
+                                    !online
+                                        ? "You're offline — emailing needs an internet connection"
+                                        : profile?.email
+                                            ? `Email to ${profile.email}`
+                                            : "Add an email in your profile (Customize) to enable this"
                                 }
                                 className="col-span-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm font-semibold text-card-foreground hover:bg-accent disabled:opacity-50 sm:col-auto sm:py-1.5"
                             >
@@ -644,7 +675,10 @@ export default function CoursesPage() {
                     <section>
                         <div className="mb-3 flex items-center justify-between gap-2">
                             <h2 className="text-lg font-semibold text-card-foreground">
-                                Students <span className="text-muted-foreground">({students.length})</span>
+                                Students{" "}
+                                <span className="text-muted-foreground">
+                                    ({query ? `${filteredStudents.length}/${students.length}` : students.length})
+                                </span>
                             </h2>
                             <div className="flex items-center gap-2">
                                 <label className="inline-block cursor-pointer rounded-lg border border-border bg-card px-3 py-1.5 text-center text-sm font-semibold text-card-foreground hover:bg-accent">
@@ -670,6 +704,14 @@ export default function CoursesPage() {
 
                         {studentsExpanded && (
                             <div className="overflow-hidden rounded-2xl border border-border">
+                                <div className="border-b border-border p-3">
+                                    <input
+                                        value={studentQuery}
+                                        onChange={(e) => setStudentQuery(e.target.value)}
+                                        placeholder="Search by name or roll no…"
+                                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
+                                    />
+                                </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full min-w-[420px] text-sm">
                                         <thead className="bg-muted text-left text-muted-foreground">
@@ -681,7 +723,7 @@ export default function CoursesPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {students.map((s) => (
+                                            {filteredStudents.map((s) => (
                                                 <tr key={s.studentID} className="border-t border-border">
                                                     <td className="px-3 py-2 sm:px-4">
                                                         <label className="block cursor-pointer">
@@ -719,6 +761,17 @@ export default function CoursesPage() {
                                                     </td>
                                                 </tr>
                                             ))}
+
+                                            {query && filteredStudents.length === 0 && (
+                                                <tr className="border-t border-border bg-muted/40">
+                                                    <td
+                                                        colSpan={4}
+                                                        className="px-3 py-6 text-center text-sm text-muted-foreground sm:px-4"
+                                                    >
+                                                        No students match “{studentQuery.trim()}”.
+                                                    </td>
+                                                </tr>
+                                            )}
 
                                             {/* add-student row */}
                                             <tr className="border-t border-border bg-muted/40">
